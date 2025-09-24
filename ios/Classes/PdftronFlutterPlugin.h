@@ -278,6 +278,10 @@ static NSString * const PTExitSearchModeKey = @"exitSearchMode";
 static NSString * const PTSetLayoutModeKey = @"setLayoutMode";
 static NSString * const PTSetFitModeKey = @"setFitMode";
 static NSString * const PTGetAnnotationsOnPageKey = @"getAnnotationsOnPage";
+static NSString * const PTSetDefaultStyleForToolKey = @"setDefaultStyleForTool";
+static NSString * const PTSetStyleForAnnotationKey = @"setStyleForAnnotation";
+static NSString * const PTGetSelectedAnnotationsKey = @"getSelectedAnnotations";
+static NSString * const PTGenerateDocumentThumbnailKey = @"generateDocumentThumbnail";
 
 // argument
 static NSString * const PTDocumentArgumentKey = @"document";
@@ -290,6 +294,8 @@ static NSString * const PTPageNumberArgumentKey = @"pageNumber";
 static NSString * const PTBookmarkTitleArgumentKey = @"title";
 static NSString * const PTLicenseArgumentKey = @"licenseKey";
 static NSString * const PTToolModeArgumentKey = @"toolMode";
+static NSString * const PTStylePropertiesArgumentKey = @"styleProperties";
+static NSString * const PTDocumentUrlArgumentKey = @"documentUrl";
 static NSString * const PTFieldNamesArgumentKey = @"fieldNames";
 static NSString * const PTFlagArgumentKey = @"flag";
 static NSString * const PTFlagValueArgumentKey = @"flagValue";
@@ -520,6 +526,7 @@ typedef enum
 @interface PdftronFlutterPlugin : NSObject<FlutterPlugin, FlutterStreamHandler, FlutterPlatformView>
 
 @property (nonatomic, strong) PTTabbedDocumentViewController *tabbedDocumentViewController;
+@property (nonatomic, strong) FlutterMethodChannel *methodChannel;
 @property (nonatomic) BOOL isBase64;
 
 + (PdftronFlutterPlugin *)registerWithFrame:(CGRect)frame viewIdentifier:(int64_t)viewId messenger:(NSObject<FlutterBinaryMessenger> *)messenger;
@@ -552,6 +559,9 @@ typedef enum
 + (NSString *)PT_idToJSONString:(id)infoId;
 + (id)PT_JSONStringToId:(NSString *)jsonString;
 + (Class)toolClassForKey:(NSString *)key;
+
+// Annotation event methods
+- (void)sendAnnotationEventToFlutter:(NSString *)eventName annotation:(PTAnnot *)annotation pageNumber:(unsigned long)pageNumber;
 
 @end
 

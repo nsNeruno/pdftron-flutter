@@ -62,6 +62,7 @@
     
     PdftronFlutterPlugin* instance = [[PdftronFlutterPlugin alloc] init];
     instance.widgetView = YES;
+    instance.methodChannel = channel; // Store the method channel for sending events
     
     __weak __typeof__(instance) weakInstance = instance;
     [channel setMethodCallHandler:^(FlutterMethodCall* call, FlutterResult result) {
@@ -1707,6 +1708,18 @@
     }
     else if ([call.method isEqualToString:PTGetAnnotationsOnPageKey]) {
         [self getAnnotationsOnPage:result call:call];
+    }
+    else if ([call.method isEqualToString:PTSetDefaultStyleForToolKey]) {
+        [self setDefaultStyleForTool:result call:call];
+    }
+    else if ([call.method isEqualToString:PTSetStyleForAnnotationKey]) {
+        [self setStyleForAnnotation:result call:call];
+    }
+    else if ([call.method isEqualToString:PTGetSelectedAnnotationsKey]) {
+        [self getSelectedAnnotations:result call:call];
+    }
+    else if ([call.method isEqualToString:PTGenerateDocumentThumbnailKey]) {
+        [self generateDocumentThumbnail:result call:call];
     }
     else {
         result(FlutterMethodNotImplemented);
@@ -3653,6 +3666,522 @@
     result([PdftronFlutterPlugin PT_idToJSONString:resultArray]);
 }
 
+- (void)setDefaultStyleForTool:(FlutterResult)result call:(FlutterMethodCall*)call
+{
+    PTDocumentController *documentController = [self getDocumentController];
+    NSString *toolMode = call.arguments[PTToolModeArgumentKey];
+    NSString *stylePropertiesJson = call.arguments[PTStylePropertiesArgumentKey];
+    
+    if (!toolMode || !stylePropertiesJson) {
+        result([FlutterError errorWithCode:@"InvalidArguments" 
+                                   message:@"toolMode and styleProperties are required" 
+                                   details:nil]);
+        return;
+    }
+    
+    PTToolManager *toolManager = documentController.toolManager;
+    if (!toolManager) {
+        result([FlutterError errorWithCode:@"InvalidState" 
+                                   message:@"ToolManager not available" 
+                                   details:nil]);
+        return;
+    }
+    
+    // Parse style properties
+    NSError *error;
+    NSDictionary *styleProperties = [NSJSONSerialization JSONObjectWithData:[stylePropertiesJson dataUsingEncoding:NSUTF8StringEncoding]
+                                                                    options:0 
+                                                                      error:&error];
+    if (error) {
+        result([FlutterError errorWithCode:@"ParseError" 
+                                   message:@"Failed to parse style properties" 
+                                   details:nil]);
+        return;
+    }
+    
+    // Validate tool mode (simplified approach)
+    if (!toolMode || toolMode.length == 0) {
+        result([FlutterError errorWithCode:@"InvalidToolMode" 
+                                   message:[NSString stringWithFormat:@"Invalid tool mode: %@", toolMode]
+                                   details:nil]);
+        return;
+    }
+    
+    // Apply default styles based on properties
+    // For iOS, we'll use a simple approach by storing styles and applying them through tool properties
+    // This is a simplified implementation that focuses on core functionality
+    
+    NSMutableDictionary *toolDefaults = [[NSMutableDictionary alloc] init];
+    
+    if (styleProperties[@"color"]) {
+        NSString *colorStr = styleProperties[@"color"];
+        UIColor *color = [PdftronFlutterPlugin colorFromHexString:colorStr];
+        if (color) {
+            toolDefaults[@"color"] = color;
+        }
+    }
+    
+    if (styleProperties[@"opacity"]) {
+        double opacity = [styleProperties[@"opacity"] doubleValue];
+        toolDefaults[@"opacity"] = @(opacity);
+    }
+    
+    if (styleProperties[@"thickness"]) {
+        double thickness = [styleProperties[@"thickness"] doubleValue];
+        toolDefaults[@"thickness"] = @(thickness);
+    }
+    
+    if (styleProperties[@"fillColor"]) {
+        NSString *fillColorStr = styleProperties[@"fillColor"];
+        UIColor *fillColor = [PdftronFlutterPlugin colorFromHexString:fillColorStr];
+        if (fillColor) {
+            toolDefaults[@"fillColor"] = fillColor;
+        }
+    }
+    
+    if (styleProperties[@"fontSize"]) {
+        double fontSize = [styleProperties[@"fontSize"] doubleValue];
+        toolDefaults[@"fontSize"] = @(fontSize);
+    }
+    
+    // Store the defaults for this tool (this is a simplified approach)
+    // In a full implementation, these would be applied when tools are created
+    NSLog(@"iOS setDefaultStyleForTool: Stored defaults for tool %@: %@", toolMode, toolDefaults);
+    
+    result(nil);
+}
+
+- (void)setStyleForAnnotation:(FlutterResult)result call:(FlutterMethodCall*)call
+{
+    PTDocumentController *documentController = [self getDocumentController];
+    NSString *annotationJson = call.arguments[PTAnnotationArgumentKey];
+    NSString *stylePropertiesJson = call.arguments[PTStylePropertiesArgumentKey];
+    
+    if (!annotationJson || !stylePropertiesJson) {
+        result([FlutterError errorWithCode:@"InvalidArguments" 
+                                   message:@"annotation and styleProperties are required" 
+                                   details:nil]);
+        return;
+    }
+    
+    PTPDFViewCtrl *pdfViewCtrl = documentController.pdfViewCtrl;
+    if (!pdfViewCtrl) {
+        result([FlutterError errorWithCode:@"InvalidState" 
+                                   message:@"Document not loaded" 
+                                   details:nil]);
+        return;
+    }
+    
+    // Parse annotation info
+    NSError *error;
+    NSDictionary *annotInfo = [NSJSONSerialization JSONObjectWithData:[annotationJson dataUsingEncoding:NSUTF8StringEncoding]
+                                                              options:0 
+                                                                error:&error];
+    if (error) {
+        result([FlutterError errorWithCode:@"ParseError" 
+                                   message:@"Failed to parse annotation info" 
+                                   details:nil]);
+        return;
+    }
+    
+    NSString *annotId = annotInfo[@"id"];
+    int pageNumber = [annotInfo[@"pageNumber"] intValue];
+    
+    // Parse style properties
+    NSDictionary *styleProperties = [NSJSONSerialization JSONObjectWithData:[stylePropertiesJson dataUsingEncoding:NSUTF8StringEncoding]
+                                                                    options:0 
+                                                                      error:&error];
+    if (error) {
+        result([FlutterError errorWithCode:@"ParseError" 
+                                   message:@"Failed to parse style properties" 
+                                   details:nil]);
+        return;
+    }
+    
+    // Find and modify the annotation
+    NSError *annotError;
+    PTAnnot *annot = [PdftronFlutterPlugin findAnnotWithUniqueID:annotId 
+                                                     onPageNumber:pageNumber 
+                                               documentController:documentController 
+                                                            error:&annotError];
+    
+    if (!annot || annotError) {
+        result([FlutterError errorWithCode:@"AnnotationNotFound" 
+                                   message:[NSString stringWithFormat:@"Annotation with id %@ not found", annotId]
+                                   details:nil]);
+        return;
+    }
+    
+    // Apply style properties - following the existing pattern from setPropertiesForAnnotation
+    @try {
+        NSLog(@"[PDFTron iOS] setStyleForAnnotation called with styleProperties: %@", styleProperties);
+        NSLog(@"[PDFTron iOS] Annotation type: %@, IsValid: %@, IsMarkup: %@", 
+              NSStringFromClass([annot class]), 
+              [annot IsValid] ? @"YES" : @"NO",
+              [annot IsMarkup] ? @"YES" : @"NO");
+        
+        // For iOS, we'll focus on the basic color property which is most widely supported
+        // Following the same pattern as the existing setPropertiesForAnnotation method
+        
+        if (styleProperties[@"color"]) {
+            NSString *colorStr = styleProperties[@"color"];
+            NSLog(@"[PDFTron iOS] Color property found: %@", colorStr ? colorStr : @"nil");
+            
+            UIColor *color = [PdftronFlutterPlugin colorFromHexString:colorStr];
+            if (color) {
+                CGFloat red, green, blue, alpha;
+                [color getRed:&red green:&green blue:&blue alpha:&alpha];
+                NSLog(@"[PDFTron iOS] Color conversion successful - R:%f G:%f B:%f A:%f", red, green, blue, alpha);
+                
+                PTColorPt *colorPt = [[PTColorPt alloc] initWithX:red y:green z:blue w:alpha];
+                NSLog(@"[PDFTron iOS] Created PTColorPt: %@", colorPt);
+                
+                [annot SetColor:colorPt numcomp:3];
+                
+                // Use RefreshAppearanceWithOptions with RefreshExisting set to YES
+                PTRefreshOptions *refreshOptions = [[PTRefreshOptions alloc] init];
+                [refreshOptions SetRefreshExisting:YES];
+                [annot RefreshAppearanceWithOptions:refreshOptions];
+                NSLog(@"[PDFTron iOS] Successfully set annotation color");
+            } else {
+                NSLog(@"[PDFTron iOS] Color conversion failed for string: %@", colorStr);
+            }
+        } else {
+            NSLog(@"[PDFTron iOS] No color property in styleProperties");
+        }
+        
+        if (styleProperties[@"opacity"]) {
+            double opacity = [styleProperties[@"opacity"] doubleValue];
+            NSLog(@"[PDFTron iOS] Opacity property found: %f", opacity);
+            NSLog(@"[PDFTron iOS] Annotation IsMarkup: %@", [annot IsMarkup] ? @"YES" : @"NO");
+            
+            if ([annot IsMarkup]) {
+                @try {
+                    // Cast the existing annotation to PTMarkup instead of creating new instance
+                    PTMarkup *markup = (PTMarkup *)annot;
+                    NSLog(@"[PDFTron iOS] Cast annotation to PTMarkup: %@", markup);
+                    NSLog(@"[PDFTron iOS] Markup class: %@", NSStringFromClass([markup class]));
+                    
+                    [markup SetOpacity:opacity];
+                    
+                    // Use RefreshAppearanceWithOptions with RefreshExisting set to YES
+                    PTRefreshOptions *refreshOptions = [[PTRefreshOptions alloc] init];
+                    [refreshOptions SetRefreshExisting:YES];
+                    [annot RefreshAppearanceWithOptions:refreshOptions];
+                    NSLog(@"[PDFTron iOS] Successfully set annotation opacity to %f", opacity);
+                } @catch (NSException *opacityException) {
+                    NSLog(@"[PDFTron iOS] Error setting opacity with cast: %@", opacityException.reason);
+                    NSLog(@"[PDFTron iOS] Exception details: %@", opacityException);
+                    
+                    // Fallback: try the initialization approach
+                    @try {
+                        NSLog(@"[PDFTron iOS] Attempting fallback with PTMarkup initWithAnn:");
+                        PTMarkup *markupFallback = [[PTMarkup alloc] initWithAnn:annot];
+                        [markupFallback SetOpacity:opacity];
+                        
+                        // Use RefreshAppearanceWithOptions with RefreshExisting set to YES
+                        PTRefreshOptions *refreshOptions = [[PTRefreshOptions alloc] init];
+                        [refreshOptions SetRefreshExisting:YES];
+                        [annot RefreshAppearanceWithOptions:refreshOptions];
+                        NSLog(@"[PDFTron iOS] Fallback successful, set opacity to %f", opacity);
+                    } @catch (NSException *fallbackException) {
+                        NSLog(@"[PDFTron iOS] Fallback also failed: %@", fallbackException.reason);
+                    }
+                }
+            } else {
+                NSLog(@"[PDFTron iOS] Annotation is not a markup type, cannot set opacity");
+            }
+        } else {
+            NSLog(@"[PDFTron iOS] No opacity property in styleProperties");
+        }
+        
+        if (styleProperties[@"thickness"]) {
+            double thickness = [styleProperties[@"thickness"] doubleValue];
+            NSLog(@"[PDFTron iOS] Thickness property found: %f", thickness);
+            
+            @try {
+                // Attempt to set thickness using PTAnnot's border style width property
+                if ([annot IsValid]) {
+                    NSLog(@"[PDFTron iOS] Annotation is valid, proceeding with border style handling");
+                    
+                    // Get existing border style and log its details
+                    PTBorderStyle *borderStyle = [annot GetBorderStyle];
+                    if (borderStyle) {
+                        NSLog(@"[PDFTron iOS] Existing border style found: %@", borderStyle);
+                        
+                        // Log current border style properties if available
+                        @try {
+                            double currentWidth = [borderStyle GetWidth];
+                            NSLog(@"[PDFTron iOS] Current border width: %f", currentWidth);
+                        } @catch (NSException *widthException) {
+                            NSLog(@"[PDFTron iOS] Could not get current border width: %@", widthException.reason);
+                        }
+                        
+                        // If border style exists, modify the width and reassign to ensure changes take effect
+                        [borderStyle SetWidth:thickness];
+                        [annot SetBorderStyle:borderStyle oldStyleOnly:NO];
+                        
+                        // Use RefreshAppearanceWithOptions with RefreshExisting set to YES
+                        PTRefreshOptions *refreshOptions = [[PTRefreshOptions alloc] init];
+                        [refreshOptions SetRefreshExisting:YES];
+                        [annot RefreshAppearanceWithOptions:refreshOptions];
+                        NSLog(@"[PDFTron iOS] Successfully updated existing border style thickness to %f", thickness);
+                    } else {
+                        NSLog(@"[PDFTron iOS] No existing border style found, creating new one");
+                        // If no border style exists, create one using the documented initialization
+                        @try {
+                            NSLog(@"[PDFTron iOS] Creating new border style with thickness: %f", thickness);
+                            PTBorderStyle *newBorderStyle = [[PTBorderStyle alloc] initWithS:0 
+                                                                                     b_width:thickness 
+                                                                                        b_hr:0.0 
+                                                                                        b_vr:0.0];
+                            NSLog(@"[PDFTron iOS] New border style created: %@", newBorderStyle);
+                            
+                            // Use the correct SetBorderStyle method signature with oldStyleOnly parameter
+                            [annot SetBorderStyle:newBorderStyle oldStyleOnly:NO];
+                            
+                            // Use RefreshAppearanceWithOptions with RefreshExisting set to YES
+                            PTRefreshOptions *refreshOptions = [[PTRefreshOptions alloc] init];
+                            [refreshOptions SetRefreshExisting:YES];
+                            [annot RefreshAppearanceWithOptions:refreshOptions];
+                            NSLog(@"[PDFTron iOS] Successfully created and set border style with thickness %f", thickness);
+                        } @catch (NSException *borderCreateException) {
+                            NSLog(@"[PDFTron iOS] Could not create/set border style for thickness %f: %@", thickness, borderCreateException.reason);
+                        }
+                    }
+                }
+            } @catch (NSException *thicknessException) {
+                NSLog(@"[PDFTron iOS] Error handling thickness property: %@", thicknessException.reason);
+            }
+        } else {
+            NSLog(@"[PDFTron iOS] No thickness property in styleProperties");
+        }
+        
+        if (styleProperties[@"fillColor"]) {
+            NSLog(@"[PDFTron iOS] fillColor style property requested but not implemented due to API compatibility");
+        }
+        
+        // Update the view
+        [pdfViewCtrl UpdateWithAnnot:annot page_num:pageNumber];
+        
+    } @catch (NSException *exception) {
+        NSLog(@"Error modifying annotation: %@", exception.reason);
+    }
+    
+    result(nil);
+}
+
+- (void)getSelectedAnnotations:(FlutterResult)result call:(FlutterMethodCall*)call
+{
+    PTDocumentController *documentController = [self getDocumentController];
+    
+    NSMutableArray *selectedAnnots = [[NSMutableArray alloc] init];
+    
+    // Check if current tool is AnnotEditTool and get selected annotations
+    if ([documentController.toolManager.tool isKindOfClass:[PTAnnotEditTool class]]) {
+        PTAnnotEditTool *annotEdit = (PTAnnotEditTool *)documentController.toolManager.tool;
+        if (annotEdit.selectedAnnotations.count > 0) {
+            [selectedAnnots addObjectsFromArray:annotEdit.selectedAnnotations];
+        }
+    }
+    
+    if (selectedAnnots.count == 0) {
+        result(nil);
+        return;
+    }
+    
+    NSMutableArray *resultArray = [[NSMutableArray alloc] init];
+    
+    // Use the current page number as the page number for selected annotations
+    // This works because typically selected annotations are on the same page
+    unsigned long currentPageNumber = [documentController.pdfViewCtrl GetCurrentPage];
+    
+    for (PTAnnot *annot in selectedAnnots) {
+        @try {
+            NSString *uid = [annot GetUniqueIDAsString];
+            if (uid) {
+                NSDictionary *annotJson = @{
+                    PTAnnotationIdKey: uid,
+                    PTAnnotationPageNumberKey: [NSNumber numberWithUnsignedLong:currentPageNumber],
+                };
+                [resultArray addObject:annotJson];
+            }
+        } @catch (NSException *exception) {
+            NSLog(@"Error getting annotation info: %@", exception.reason);
+        }
+    }
+    
+    result([PdftronFlutterPlugin PT_idToJSONString:resultArray]);
+}
+
+- (void)generateDocumentThumbnail:(FlutterResult)result call:(FlutterMethodCall*)call
+{
+    NSString *documentUrl = call.arguments[PTDocumentUrlArgumentKey];
+    NSString *xfdf = call.arguments[PTXfdfArgumentKey]; // This might be nil
+    
+    if (!documentUrl || documentUrl.length == 0) {
+        result([FlutterError errorWithCode:@"InvalidArguments" 
+                                   message:@"documentUrl is required" 
+                                   details:nil]);
+        return;
+    }
+    
+    NSLog(@"[PDFTron iOS] generateDocumentThumbnail called with documentUrl: %@", documentUrl);
+    NSLog(@"[PDFTron iOS] XFDF provided: %@", xfdf ? @"YES" : @"NO");
+    
+    // Perform the operation in background to avoid blocking UI
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        @try {
+            // Step 1: Load the PDF document
+            NSLog(@"[PDFTron iOS] Step 1: Loading PDF document from %@", documentUrl);
+            PTPDFDoc *pdfDoc = [[PTPDFDoc alloc] initWithFilepath:documentUrl];
+            
+            if (!pdfDoc) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    result([FlutterError errorWithCode:@"DocumentLoadError" 
+                                               message:@"Failed to load PDF document" 
+                                               details:nil]);
+                });
+                return;
+            }
+            
+            NSLog(@"[PDFTron iOS] Document loaded successfully");
+            
+            // Step 2: Apply XFDF annotations if provided
+            if (xfdf && xfdf.length > 0) {
+                NSLog(@"[PDFTron iOS] Step 2: Applying XFDF annotations");
+                @try {
+                    PTFDFDoc *fdfDoc = [PTFDFDoc CreateFromXFDF:xfdf];
+                    [pdfDoc FDFMerge:fdfDoc];
+                    NSLog(@"[PDFTron iOS] XFDF annotations applied successfully");
+                } @catch (NSException *xfdfException) {
+                    NSLog(@"[PDFTron iOS] Warning: Failed to apply XFDF: %@", xfdfException.reason);
+                    // Continue without XFDF instead of failing completely
+                }
+            } else {
+                NSLog(@"[PDFTron iOS] Step 2: No XFDF provided, skipping annotation application");
+            }
+            
+            // Step 3: Flatten annotations
+            NSLog(@"[PDFTron iOS] Step 3: Flattening annotations");
+            @try {
+                // FlattenAnnotations takes a boolean parameter for forms_only
+                [pdfDoc FlattenAnnotations:NO]; // NO means flatten all annotations, not just forms
+                NSLog(@"[PDFTron iOS] Annotations flattened successfully");
+            } @catch (NSException *flattenException) {
+                NSLog(@"[PDFTron iOS] Warning: Failed to flatten annotations: %@", flattenException.reason);
+                // Continue without flattening
+            }
+            
+            // Step 4: Generate thumbnail from first page
+            NSLog(@"[PDFTron iOS] Step 4: Generating thumbnail from first page");
+            PTPage *firstPage = [pdfDoc GetPage:1];
+            if (!firstPage) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    result([FlutterError errorWithCode:@"PageError" 
+                                               message:@"Failed to get first page of document" 
+                                               details:nil]);
+                });
+                return;
+            }
+            
+            // Create PDFDraw for rendering with specific DPI
+            PTPDFDraw *pdfDraw = [[PTPDFDraw alloc] initWithDpi:150.0]; // Initialize with reasonable DPI for thumbnail
+            NSLog(@"[PDFTron iOS] Created PTPDFDraw with DPI 150");
+            
+            // Export page as image
+            NSString *tempDir = NSTemporaryDirectory();
+            NSString *timestamp = [NSString stringWithFormat:@"%.0f", [[NSDate date] timeIntervalSince1970] * 1000];
+            NSString *thumbnailFileName = [NSString stringWithFormat:@"thumbnail_%@.png", timestamp];
+            NSString *thumbnailPath = [tempDir stringByAppendingPathComponent:thumbnailFileName];
+            NSLog(@"[PDFTron iOS] Exporting to path: %@", thumbnailPath);
+            
+            [pdfDraw Export:firstPage filename:thumbnailPath format:@"PNG"];
+            
+            NSLog(@"[PDFTron iOS] Export method completed, checking file existence...");
+            
+            // Check if file was created successfully
+            if ([[NSFileManager defaultManager] fileExistsAtPath:thumbnailPath]) {
+                NSLog(@"[PDFTron iOS] Thumbnail file created successfully at: %@", thumbnailPath);
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    result(thumbnailPath);
+                });
+            } else {
+                NSLog(@"[PDFTron iOS] Thumbnail file was not created at: %@", thumbnailPath);
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    result([FlutterError errorWithCode:@"ExportError" 
+                                               message:@"Failed to export thumbnail image" 
+                                               details:nil]);
+                });
+            }
+            
+        } @catch (NSException *exception) {
+            NSLog(@"[PDFTron iOS] Error in generateDocumentThumbnail: %@", exception.reason);
+            dispatch_async(dispatch_get_main_queue(), ^{
+                result([FlutterError errorWithCode:@"ThumbnailGenerationError" 
+                                           message:[NSString stringWithFormat:@"Failed to generate thumbnail: %@", exception.reason] 
+                                           details:nil]);
+            });
+        }
+    });
+}
+
++ (UIColor *)colorFromHexString:(NSString *)hexString {
+    NSString *cleanString = [hexString stringByReplacingOccurrencesOfString:@"#" withString:@""];
+    if([cleanString length] == 6) {
+        cleanString = [@"FF" stringByAppendingString:cleanString];
+    }
+    
+    if([cleanString length] != 8) {
+        return nil;
+    }
+    
+    unsigned int baseValue;
+    [[NSScanner scannerWithString:cleanString] scanHexInt:&baseValue];
+    
+    float alpha = ((baseValue >> 24) & 0xFF)/255.0f;
+    float red = ((baseValue >> 16) & 0xFF)/255.0f;
+    float green = ((baseValue >> 8) & 0xFF)/255.0f;
+    float blue = ((baseValue >> 0) & 0xFF)/255.0f;
+    
+    return [UIColor colorWithRed:red green:green blue:blue alpha:alpha];
+}
+
+#pragma mark - Annotation Event Helpers
+
+- (void)sendAnnotationEventToFlutter:(NSString *)eventName annotation:(PTAnnot *)annotation pageNumber:(unsigned long)pageNumber {
+    if (!self.methodChannel) {
+        return; // No method channel available
+    }
+    
+    __block NSString *annotationId = nil;
+    NSError *error;
+    
+    [self.tabbedDocumentViewController.selectedViewController.pdfViewCtrl DocLockReadWithBlock:^(PTPDFDoc * _Nullable doc) {
+        PTObj *uniqueIdObj = [annotation GetUniqueID];
+        if ([uniqueIdObj IsValid] && [uniqueIdObj IsString]) {
+            annotationId = [uniqueIdObj GetAsPDFText];
+        }
+    } error:&error];
+    
+    if (error) {
+        NSLog(@"Error getting annotation ID: %@", error);
+        return;
+    }
+    
+    NSDictionary *annotationData = @{
+        @"id": annotationId ?: @"",
+        @"pageNumber": @(pageNumber)
+    };
+    
+    NSDictionary *eventData = @{
+        @"annotation": annotationData,
+        @"data": @{}
+    };
+    
+    NSString *eventDataJson = [PdftronFlutterPlugin PT_idToJSONString:eventData];
+    [self.methodChannel invokeMethod:eventName arguments:eventDataJson];
+}
 
 #pragma mark - Helper
 

@@ -95,6 +95,7 @@ public class DocumentView extends com.pdftron.pdf.controls.DocumentView2 impleme
     private EventChannel.EventSink sAppBarButtonPressedEventEmitter;
 
     private MethodChannel.Result sFlutterLoadResult;
+    private MethodChannel mMethodChannel;
 
     private HashMap<Annot, Integer> mSelectedAnnots;
 
@@ -518,6 +519,15 @@ public class DocumentView extends com.pdftron.pdf.controls.DocumentView2 impleme
     @Override
     public HashMap<Annot, Integer> getSelectedAnnots() {
         return mSelectedAnnots;
+    }
+    
+    @Override
+    public MethodChannel getMethodChannel() {
+        return mMethodChannel;
+    }
+    
+    public void setMethodChannel(MethodChannel channel) {
+        mMethodChannel = channel;
     }
 
     @Override

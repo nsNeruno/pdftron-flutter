@@ -90,6 +90,8 @@ public interface ViewerComponent {
     EventChannel.EventSink getAppBarButtonPressedEventEmitter();
 
     MethodChannel.Result getFlutterLoadResult();
+    
+    MethodChannel getMethodChannel();
 
     HashMap<Annot, Integer> getSelectedAnnots();
 

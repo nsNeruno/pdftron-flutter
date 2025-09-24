@@ -552,4 +552,11 @@ public class FlutterDocumentActivity extends DocumentActivity implements ViewerC
     public ViewerImpl getImpl() {
         return mImpl;
     }
+
+    @Nullable
+    @Override
+    public io.flutter.plugin.common.MethodChannel getMethodChannel() {
+        // TODO: Implement proper MethodChannel access
+        return null;
+    }
 }

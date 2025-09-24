@@ -120,6 +120,7 @@ public class PluginUtils {
     public static final String KEY_ANIMATED = "animated";
 
     public static final String KEY_REQUESTED_ORIENTATION = "requestedOrientation";
+    public static final String KEY_STYLE_PROPERTIES = "styleProperties";
 
     public static final String KEY_CONFIG_DISABLED_ELEMENTS = "disabledElements";
     public static final String KEY_CONFIG_DISABLED_TOOLS = "disabledTools";
@@ -363,6 +364,9 @@ public class PluginUtils {
     public static final String FUNCTION_SET_LAYOUT_MODE = "setLayoutMode";
     public static final String FUNCTION_SET_FIT_MODE = "setFitMode";
     public static final String FUNCTION_GET_ANNOTATIONS_ON_PAGE = "getAnnotationsOnPage";
+    public static final String FUNCTION_SET_DEFAULT_STYLE_FOR_TOOL = "setDefaultStyleForTool";
+    public static final String FUNCTION_SET_STYLE_FOR_ANNOTATION = "setStyleForAnnotation";
+    public static final String FUNCTION_GET_SELECTED_ANNOTATIONS = "getSelectedAnnotations";
 
     public static final String BUTTON_TOOLS = "toolsButton";
     public static final String BUTTON_SEARCH = "searchButton";
@@ -2716,6 +2720,21 @@ public class PluginUtils {
                 getAnnotationsOnPage(call, result, component);
                 break;
             }
+            case FUNCTION_SET_DEFAULT_STYLE_FOR_TOOL: {
+                checkFunctionPrecondition(component);
+                setDefaultStyleForTool(call, result, component);
+                break;
+            }
+            case FUNCTION_SET_STYLE_FOR_ANNOTATION: {
+                checkFunctionPrecondition(component);
+                setStyleForAnnotation(call, result, component);
+                break;
+            }
+            case FUNCTION_GET_SELECTED_ANNOTATIONS: {
+                checkFunctionPrecondition(component);
+                getSelectedAnnotations(result, component);
+                break;
+            }
             default:
                 Log.e("PDFTronFlutter", "notImplemented: " + call.method);
                 result.notImplemented();
@@ -4653,5 +4672,225 @@ public class PluginUtils {
             }
         }
         return null;
+    }
+    
+    public static void emitAnnotationSelectedEvent(Annot annot, Integer pageNumber, ViewerComponent component) {
+        try {
+            if (component.getMethodChannel() != null) {
+                JSONObject eventData = new JSONObject();
+                JSONObject annotData = getAnnotationData(annot, pageNumber, component);
+                eventData.put("annotation", annotData);
+                component.getMethodChannel().invokeMethod("onAnnotationSelected", eventData.toString());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static void emitAnnotationDeselectedEvent(Annot annot, Integer pageNumber, ViewerComponent component) {
+        try {
+            if (component.getMethodChannel() != null) {
+                JSONObject eventData = new JSONObject();
+                JSONObject annotData = getAnnotationData(annot, pageNumber, component);
+                eventData.put("annotation", annotData);
+                component.getMethodChannel().invokeMethod("onAnnotationDeselected", eventData.toString());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static void emitAnnotationAddedEvent(Annot annot, Integer pageNumber, ViewerComponent component) {
+        try {
+            if (component.getMethodChannel() != null) {
+                JSONObject eventData = new JSONObject();
+                JSONObject annotData = getAnnotationData(annot, pageNumber, component);
+                eventData.put("annotation", annotData);
+                component.getMethodChannel().invokeMethod("onAnnotationAdded", eventData.toString());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static void emitAnnotationRemovedEvent(Annot annot, Integer pageNumber, ViewerComponent component) {
+        try {
+            if (component.getMethodChannel() != null) {
+                JSONObject eventData = new JSONObject();
+                JSONObject annotData = getAnnotationData(annot, pageNumber, component);
+                eventData.put("annotation", annotData);
+                component.getMethodChannel().invokeMethod("onAnnotationRemoved", eventData.toString());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private static void setDefaultStyleForTool(MethodCall call, MethodChannel.Result result, ViewerComponent component) {
+        try {
+            String toolMode = call.argument(KEY_TOOL_MODE);
+            String stylePropertiesJson = call.argument(KEY_STYLE_PROPERTIES);
+            
+            if (toolMode == null || stylePropertiesJson == null) {
+                result.error("InvalidArguments", "toolMode and styleProperties are required", null);
+                return;
+            }
+            
+            ToolManager toolManager = component.getToolManager();
+            if (toolManager == null) {
+                result.error("InvalidState", "ToolManager not available", null);
+                return;
+            }
+            
+            // Parse style properties
+            JSONObject styleProperties = new JSONObject(stylePropertiesJson);
+            
+            // Map tool mode string to tool class
+            ToolManager.ToolMode mode = convStringToToolMode(toolMode);
+            if (mode == null) {
+                result.error("InvalidToolMode", "Unknown tool mode: " + toolMode, null);
+                return;
+            }
+            
+            // Apply default styles based on properties
+            if (styleProperties.has("color")) {
+                String colorStr = styleProperties.getString("color");
+                int color = Color.parseColor(colorStr);
+                toolManager.setDefaultToolColor(mode, color);
+            }
+            
+            if (styleProperties.has("opacity")) {
+                double opacity = styleProperties.getDouble("opacity");
+                toolManager.setDefaultOpacity(mode, (float) opacity);
+            }
+            
+            if (styleProperties.has("thickness")) {
+                double thickness = styleProperties.getDouble("thickness");
+                toolManager.setDefaultThickness(mode, (float) thickness);
+            }
+            
+            if (styleProperties.has("fillColor")) {
+                String fillColorStr = styleProperties.getString("fillColor");
+                int fillColor = Color.parseColor(fillColorStr);
+                toolManager.setDefaultFillColor(mode, fillColor);
+            }
+            
+            if (styleProperties.has("fontSize")) {
+                double fontSize = styleProperties.getDouble("fontSize");
+                toolManager.setDefaultFontSize(mode, (float) fontSize);
+            }
+            
+            result.success(null);
+        } catch (Exception e) {
+            result.error("Error", "Failed to set default style: " + e.getMessage(), null);
+        }
+    }
+    
+    private static void setStyleForAnnotation(MethodCall call, MethodChannel.Result result, ViewerComponent component) {
+        try {
+            String annotationJson = call.argument(KEY_ANNOTATION);
+            String stylePropertiesJson = call.argument(KEY_STYLE_PROPERTIES);
+            
+            if (annotationJson == null || stylePropertiesJson == null) {
+                result.error("InvalidArguments", "annotation and styleProperties are required", null);
+                return;
+            }
+            
+            PDFViewCtrl pdfViewCtrl = component.getPdfViewCtrl();
+            PDFDoc pdfDoc = component.getPdfDoc();
+            
+            if (pdfViewCtrl == null || pdfDoc == null) {
+                result.error("InvalidState", "Document not loaded", null);
+                return;
+            }
+            
+            // Parse annotation info
+            JSONObject annotInfo = new JSONObject(annotationJson);
+            String annotId = annotInfo.getString("id");
+            int pageNumber = annotInfo.getInt("pageNumber");
+            
+            // Parse style properties
+            JSONObject styleProperties = new JSONObject(stylePropertiesJson);
+            
+            // Find and modify the annotation
+            boolean shouldUnlock = false;
+            try {
+                pdfViewCtrl.docLock(true);
+                shouldUnlock = true;
+                
+                Page page = pdfDoc.getPage(pageNumber);
+                if (page == null) {
+                    result.error("InvalidPage", "Page not found", null);
+                    return;
+                }
+                
+                // Find annotation by id
+                Annot annot = null;
+                int annotNum = page.getNumAnnots();
+                for (int i = 0; i < annotNum; i++) {
+                    Annot tempAnnot = page.getAnnot(i);
+                    if (tempAnnot.getUniqueID() != null && tempAnnot.getUniqueID().toString().equals(annotId)) {
+                        annot = tempAnnot;
+                        break;
+                    }
+                }
+                
+                if (annot == null) {
+                    result.error("AnnotationNotFound", "Annotation with id " + annotId + " not found", null);
+                    return;
+                }
+                
+                // Apply style properties
+                if (styleProperties.has("color")) {
+                    String colorStr = styleProperties.getString("color");
+                    int color = Color.parseColor(colorStr);
+                    annot.setColor(Utils.color2ColorPt(color), 3);
+                }
+                
+                if (styleProperties.has("opacity")) {
+                    double opacity = styleProperties.getDouble("opacity");
+                    if (annot instanceof Markup) {
+                        ((Markup) annot).setOpacity(opacity);
+                    }
+                }
+                
+                if (styleProperties.has("thickness")) {
+                    double thickness = styleProperties.getDouble("thickness");
+                    annot.setBorderStyle(new Annot.BorderStyle(Annot.BorderStyle.e_solid, thickness));
+                }
+                
+                if (styleProperties.has("fillColor") && annot.getStructParent() != -1) {
+                    String fillColorStr = styleProperties.getString("fillColor");
+                    int fillColor = Color.parseColor(fillColorStr);
+                    annot.setInteriorColor(Utils.color2ColorPt(fillColor), 3);
+                }
+                
+                // Refresh the annotation appearance
+                annot.refreshAppearance();
+                pdfViewCtrl.update(annot, pageNumber);
+                
+                result.success(null);
+            } finally {
+                if (shouldUnlock) {
+                    pdfViewCtrl.docUnlock();
+                }
+            }
+        } catch (Exception e) {
+            result.error("Error", "Failed to set annotation style: " + e.getMessage(), null);
+        }
+    }
+    
+    private static void getSelectedAnnotations(MethodChannel.Result result, ViewerComponent component) {
+        try {
+            if (!hasAnnotationsSelected(component)) {
+                result.success(null);
+                return;
+            }
+            
+            JSONArray annotations = getAnnotationsData(component);
+            result.success(annotations.toString());
+        } catch (Exception e) {
+            result.error("Error", "Failed to get selected annotations: " + e.getMessage(), null);
+        }
     }
 }

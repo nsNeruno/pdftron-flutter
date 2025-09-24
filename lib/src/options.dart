@@ -196,3 +196,26 @@ class CustomToolbar {
   Map<String, dynamic> toJson() =>
       {'id': id, 'name': name, 'items': jsonEncode(items), 'icon': icon};
 }
+
+/// An event object for annotation interactions.
+class AnnotationEvent {
+  /// The annotation that triggered the event.
+  Annot? annotation;
+
+  /// Additional data associated with the event.
+  Map<String, dynamic>? data;
+
+  AnnotationEvent(this.annotation, this.data);
+
+  factory AnnotationEvent.fromJson(dynamic json) {
+    return AnnotationEvent(
+      json['annotation'] != null ? Annot.fromJson(json['annotation']) : null,
+      json['data'] != null ? Map<String, dynamic>.from(json['data']) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'annotation': annotation?.toJson(),
+    'data': data,
+  };
+}

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -67,7 +68,9 @@ class _DocumentViewState extends State<DocumentView> {
 /// Used to initialize and control the [DocumentView] widget.
 class DocumentViewController {
   DocumentViewController._(int id)
-      : _channel = new MethodChannel('pdftron_flutter/documentview_$id');
+      : _channel = new MethodChannel('pdftron_flutter/documentview_$id') {
+    _startAnnotationEventListeners();
+  }
 
   final MethodChannel _channel;
 
@@ -797,5 +800,123 @@ class DocumentViewController {
       }
       return annotList;
     });
+  }
+
+  /// Sets the default style properties for the specified annotation tool.
+  /// 
+  /// The [toolMode] should be one of the [Tools] constants.
+  /// The [styleProperties] is a map containing the style properties to set.
+  /// 
+  /// ```dart
+  /// await controller.setDefaultStyleForTool(
+  ///   Tools.annotationCreateTextHighlight,
+  ///   {
+  ///     'color': '#FF0000',
+  ///     'opacity': 0.5,
+  ///     'thickness': 2.0,
+  ///   }
+  /// );
+  /// ```
+  Future<void> setDefaultStyleForTool(String toolMode, Map<String, dynamic> styleProperties) {
+    return _channel.invokeMethod(Functions.setDefaultStyleForTool, <String, dynamic>{
+      Parameters.toolMode: toolMode,
+      Parameters.styleProperties: jsonEncode(styleProperties)
+    });
+  }
+
+  /// Modifies the style properties of an existing annotation.
+  /// 
+  /// ```dart
+  /// await controller.setStyleForAnnotation(
+  ///   new Annot('annotId', 1),
+  ///   {
+  ///     'color': '#00FF00',
+  ///     'opacity': 0.8,
+  ///   }
+  /// );
+  /// ```
+  Future<void> setStyleForAnnotation(Annot annotation, Map<String, dynamic> styleProperties) {
+    return _channel.invokeMethod(Functions.setStyleForAnnotation, <String, dynamic>{
+      Parameters.annotation: jsonEncode(annotation),
+      Parameters.styleProperties: jsonEncode(styleProperties)
+    });
+  }
+
+  /// Gets the list of currently selected annotations.
+  /// 
+  /// Returns a list of annotations that are currently selected in the viewer.
+  /// Returns null if no annotations are selected or if an error occurs.
+  /// 
+  /// ```dart
+  /// List<Annot>? selectedAnnotations = await controller.getSelectedAnnotations();
+  /// if (selectedAnnotations != null && selectedAnnotations.isNotEmpty) {
+  ///   print('Selected ${selectedAnnotations.length} annotations');
+  ///   for (var annot in selectedAnnotations) {
+  ///     print('Annotation ID: ${annot.id}, Page: ${annot.pageNumber}');
+  ///   }
+  /// }
+  /// ```
+  Future<List<Annot>?> getSelectedAnnotations() {
+    return _channel.invokeMethod(Functions.getSelectedAnnotations).then((jsonArray) {
+      if (jsonArray == null) {
+        return null;
+      }
+      List<dynamic> annotations = jsonDecode(jsonArray);
+      List<Annot> annotList = new List<Annot>.empty(growable: true);
+      for (dynamic annotation in annotations) {
+        annotList.add(new Annot.fromJson(annotation));
+      }
+      return annotList;
+    });
+  }
+
+  // Annotation Event Stream Controllers
+  final StreamController<AnnotationEvent> _annotationSelectedController = StreamController<AnnotationEvent>.broadcast();
+  final StreamController<AnnotationEvent> _annotationDeselectedController = StreamController<AnnotationEvent>.broadcast();
+  final StreamController<AnnotationEvent> _annotationAddedController = StreamController<AnnotationEvent>.broadcast();
+  final StreamController<AnnotationEvent> _annotationRemovedController = StreamController<AnnotationEvent>.broadcast();
+
+  /// Stream of annotation selected events.
+  Stream<AnnotationEvent> get onAnnotationSelected => _annotationSelectedController.stream;
+
+  /// Stream of annotation deselected events.
+  Stream<AnnotationEvent> get onAnnotationDeselected => _annotationDeselectedController.stream;
+
+  /// Stream of annotation added events.
+  Stream<AnnotationEvent> get onAnnotationAdded => _annotationAddedController.stream;
+
+  /// Stream of annotation removed events.
+  Stream<AnnotationEvent> get onAnnotationRemoved => _annotationRemovedController.stream;
+
+  /// Starts listening to annotation events.
+  void _startAnnotationEventListeners() {
+    _channel.setMethodCallHandler((MethodCall call) async {
+      switch (call.method) {
+        case 'onAnnotationSelected':
+          final event = AnnotationEvent.fromJson(jsonDecode(call.arguments));
+          _annotationSelectedController.add(event);
+          break;
+        case 'onAnnotationDeselected':
+          final event = AnnotationEvent.fromJson(jsonDecode(call.arguments));
+          _annotationDeselectedController.add(event);
+          break;
+        case 'onAnnotationAdded':
+          final event = AnnotationEvent.fromJson(jsonDecode(call.arguments));
+          _annotationAddedController.add(event);
+          break;
+        case 'onAnnotationRemoved':
+          final event = AnnotationEvent.fromJson(jsonDecode(call.arguments));
+          _annotationRemovedController.add(event);
+          break;
+      }
+    });
+  }
+
+  /// Disposes of the controller and closes stream controllers.
+  void dispose() {
+    _annotationSelectedController.close();
+    _annotationDeselectedController.close();
+    _annotationAddedController.close();
+    _annotationRemovedController.close();
   }
 }

@@ -59,6 +59,7 @@ public class FlutterDocumentView implements PlatformView, MethodChannel.MethodCa
 
         methodChannel = new MethodChannel(messenger, "pdftron_flutter/documentview_" + id);
         methodChannel.setMethodCallHandler(this);
+        documentView.setMethodChannel(methodChannel);
     }
 
     public void registerWith(BinaryMessenger messenger) {

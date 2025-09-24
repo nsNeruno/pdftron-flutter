@@ -307,6 +307,9 @@ static BOOL PT_addMethod(Class cls, SEL selector, void (^block)(id))
         NSString *xfdf = [self.pdfViewCtrl.externalAnnotManager GetLastXFDF];
         [self.plugin documentController:self annotationsAsXFDFCommand:xfdf];
     }
+    
+    // Also send the specific annotation removed event for the new API
+    [self.plugin sendAnnotationEventToFlutter:@"onAnnotationRemoved" annotation:annotation pageNumber:pageNumber];
 }
 
 - (void)toolManager:(PTToolManager *)toolManager annotationAdded:(PTAnnot *)annotation onPageNumber:(unsigned long)pageNumber
@@ -323,6 +326,9 @@ static BOOL PT_addMethod(Class cls, SEL selector, void (^block)(id))
         xfdf = [self generateXfdfCommandWithAdded:@[annotation] modified:Nil removed:Nil];
     }
     [self.plugin documentController:self annotationsAsXFDFCommand:xfdf];
+    
+    // Also send the specific annotation added event for the new API
+    [self.plugin sendAnnotationEventToFlutter:@"onAnnotationAdded" annotation:annotation pageNumber:pageNumber];
 }
 
 - (void)toolManager:(PTToolManager *)toolManager annotationModified:(PTAnnot *)annotation onPageNumber:(unsigned long)pageNumber
@@ -377,6 +383,17 @@ static BOOL PT_addMethod(Class cls, SEL selector, void (^block)(id))
         };
         
         [self.plugin documentController:self annotationsSelected:[PdftronFlutterPlugin PT_idToJSONString:@[annotDict]]];
+        
+        // Also send the specific annotation selected event for the new API
+        [self.plugin sendAnnotationEventToFlutter:@"onAnnotationSelected" annotation:annotation pageNumber:pageNumber];
+    }
+}
+
+- (void)toolManager:(PTToolManager *)toolManager didDeselectAnnotation:(PTAnnot *)annotation onPageNumber:(unsigned long)pageNumber
+{
+    if (annotation.IsValid) {
+        // Send the specific annotation deselected event for the new API
+        [self.plugin sendAnnotationEventToFlutter:@"onAnnotationDeselected" annotation:annotation pageNumber:pageNumber];
     }
 }
 

@@ -211,7 +211,86 @@ class _ViewerState extends State<Viewer> {
       _showMyDialog();
     });
 
+    // NEW: Set up annotation event listeners
+    controller.onAnnotationSelected.listen((event) {
+      print('Annotation selected: ${event.annotation?.id}');
+    });
+
+    controller.onAnnotationDeselected.listen((event) {
+      print('Annotation deselected: ${event.annotation?.id}');
+    });
+
+    controller.onAnnotationAdded.listen((event) {
+      print('Annotation added: ${event.annotation?.id}');
+    });
+
+    controller.onAnnotationRemoved.listen((event) {
+      print('Annotation removed: ${event.annotation?.id}');
+    });
+
     await controller.openDocument(_document, config: config);
+    
+    // NEW: Set default styles for annotation tools
+    await _setDefaultStyles(controller);
+    
+    // NEW: Example of modifying an annotation style after creation
+    await _demonstrateAnnotationStyleModification(controller);
+  }
+
+  Future<void> _setDefaultStyles(DocumentViewController controller) async {
+    try {
+      // Set default style for text highlight tool
+      await controller.setDefaultStyleForTool(
+        Tools.annotationCreateTextHighlight,
+        {
+          'color': '#FFFF00',  // Yellow
+          'opacity': 0.5,
+        }
+      );
+
+      // Set default style for rectangle tool
+      await controller.setDefaultStyleForTool(
+        Tools.annotationCreateRectangle,
+        {
+          'color': '#FF0000',    // Red border
+          'fillColor': '#FF0000', // Red fill
+          'opacity': 0.3,
+          'thickness': 2.0,
+        }
+      );
+
+      // Set default style for free text tool
+      await controller.setDefaultStyleForTool(
+        Tools.annotationCreateFreeText,
+        {
+          'color': '#0000FF',    // Blue text
+          'fontSize': 14.0,
+        }
+      );
+
+      print('Default styles set successfully');
+    } catch (e) {
+      print('Error setting default styles: $e');
+    }
+  }
+
+  Future<void> _demonstrateAnnotationStyleModification(DocumentViewController controller) async {
+    // This demonstrates how to modify an existing annotation's style
+    // In a real app, you would get the annotation ID from the annotation event
+    try {
+      // Example: Change color of an existing annotation
+      // You would typically get the annotation from an event listener
+      var annot = new Annot('example-annotation-id', 1);
+      
+      await controller.setStyleForAnnotation(annot, {
+        'color': '#00FF00',  // Change to green
+        'opacity': 0.8,
+      });
+      
+      print('Annotation style modified successfully');
+    } catch (e) {
+      print('Note: This will fail without a valid annotation ID: $e');
+    }
   }
 
   Future<void> _showMyDialog() async {

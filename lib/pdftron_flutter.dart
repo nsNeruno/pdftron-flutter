@@ -782,4 +782,31 @@ class PdftronFlutter {
       return annotList;
     });
   }
+
+  /// Generates a thumbnail image from a PDF document with optional annotation overlay.
+  ///
+  /// This method performs the following operations in sequence:
+  /// 1. Loads the PDF document from the provided [documentUrl]
+  /// 2. Applies annotations from the optional [xfdf] string
+  /// 3. Flattens all annotations into the document
+  /// 4. Exports the first page as a thumbnail image
+  ///
+  /// ```dart
+  /// String? thumbnailPath = await PdftronFlutter.generateDocumentThumbnail(
+  ///   'path/to/document.pdf',
+  ///   xfdf: '<xfdf>...</xfdf>' // optional
+  /// );
+  /// ```
+  ///
+  /// Returns the absolute path to the generated thumbnail image file stored in 
+  /// temporary storage, or null if the operation fails.
+  ///
+  /// [documentUrl] The path or URL to the PDF document
+  /// [xfdf] Optional XFDF string containing annotations to apply before generating thumbnail
+  static Future<String?> generateDocumentThumbnail(String documentUrl, {String? xfdf}) {
+    return _channel.invokeMethod(Functions.generateDocumentThumbnail, <String, dynamic>{
+      Parameters.documentUrl: documentUrl,
+      Parameters.xfdf: xfdf,
+    });
+  }
 }

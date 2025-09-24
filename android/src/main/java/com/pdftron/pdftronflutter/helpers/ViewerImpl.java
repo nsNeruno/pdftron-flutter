@@ -100,6 +100,11 @@ public class ViewerImpl {
             PluginUtils.emitAnnotationChangedEvent(PluginUtils.KEY_ACTION_ADD, map, mViewerComponent);
 
             PluginUtils.emitExportAnnotationCommandEvent(PluginUtils.KEY_ACTION_ADD, map, mViewerComponent);
+            
+            // Emit annotation added event for each annotation
+            for (Map.Entry<Annot, Integer> entry : map.entrySet()) {
+                PluginUtils.emitAnnotationAddedEvent(entry.getKey(), entry.getValue(), mViewerComponent);
+            }
         }
 
         @Override
@@ -150,6 +155,11 @@ public class ViewerImpl {
             PluginUtils.emitAnnotationChangedEvent(PluginUtils.KEY_ACTION_DELETE, map, mViewerComponent);
 
             PluginUtils.emitExportAnnotationCommandEvent(PluginUtils.KEY_ACTION_DELETE, map, mViewerComponent);
+            
+            // Emit annotation removed event for each annotation
+            for (Map.Entry<Annot, Integer> entry : map.entrySet()) {
+                PluginUtils.emitAnnotationRemovedEvent(entry.getKey(), entry.getValue(), mViewerComponent);
+            }
         }
 
         @Override
@@ -172,6 +182,28 @@ public class ViewerImpl {
         @Override
         public void onAnnotationsSelectionChanged(HashMap<Annot, Integer> hashMap) {
             PluginUtils.emitAnnotationsSelectedEvent(hashMap, mViewerComponent);
+            
+            // Emit individual annotation selected/deselected events
+            HashMap<Annot, Integer> previousSelection = mViewerComponent.getSelectedAnnots();
+            
+            // Check for newly selected annotations
+            for (Map.Entry<Annot, Integer> entry : hashMap.entrySet()) {
+                if (previousSelection == null || !previousSelection.containsKey(entry.getKey())) {
+                    PluginUtils.emitAnnotationSelectedEvent(entry.getKey(), entry.getValue(), mViewerComponent);
+                }
+            }
+            
+            // Check for deselected annotations
+            if (previousSelection != null) {
+                for (Map.Entry<Annot, Integer> entry : previousSelection.entrySet()) {
+                    if (!hashMap.containsKey(entry.getKey())) {
+                        PluginUtils.emitAnnotationDeselectedEvent(entry.getKey(), entry.getValue(), mViewerComponent);
+                    }
+                }
+            }
+            
+            // Update the current selection
+            mViewerComponent.setSelectedAnnots(hashMap);
         }
     };
 

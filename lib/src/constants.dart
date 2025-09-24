@@ -83,6 +83,10 @@ class Functions {
   static const setLayoutMode = "setLayoutMode";
   static const setFitMode = "setFitMode";
   static const getAnnotationsOnPage = "getAnnotationsOnPage";
+  static const setDefaultStyleForTool = "setDefaultStyleForTool";
+  static const setStyleForAnnotation = "setStyleForAnnotation";
+  static const getSelectedAnnotations = "getSelectedAnnotations";
+  static const generateDocumentThumbnail = "generateDocumentThumbnail";
 }
 
 /// Parameters of functions.
@@ -125,6 +129,8 @@ class Parameters {
   // Hygen Generated Method Parameters
   static const layoutMode = "layoutMode";
   static const fitMode = "fitMode";
+  static const styleProperties = "styleProperties";
+  static const documentUrl = "documentUrl";
 }
 
 /// Parameters of events.
