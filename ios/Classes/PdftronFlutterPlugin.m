@@ -1718,6 +1718,9 @@
     else if ([call.method isEqualToString:PTGetSelectedAnnotationsKey]) {
         [self getSelectedAnnotations:result call:call];
     }
+    else if ([call.method isEqualToString:PTSetAnnotationEditingEnabledKey]) {
+        [self setAnnotationEditingEnabled:result call:call];
+    }
     else if ([call.method isEqualToString:PTGenerateDocumentThumbnailKey]) {
         [self generateDocumentThumbnail:result call:call];
     }
@@ -4014,6 +4017,42 @@
     result([PdftronFlutterPlugin PT_idToJSONString:resultArray]);
 }
 
+- (void)setAnnotationEditingEnabled:(FlutterResult)result call:(FlutterMethodCall*)call
+{
+    NSArray *annotationTypes = call.arguments[PTAnnotationTypesArgumentKey];
+    NSNumber *enabledNumber = call.arguments[PTEnabledArgumentKey];
+    
+    if (!annotationTypes || !enabledNumber) {
+        result([FlutterError errorWithCode:@"InvalidArguments" 
+                                   message:@"annotationTypes and enabled are required" 
+                                   details:nil]);
+        return;
+    }
+    
+    BOOL enabled = [enabledNumber boolValue];
+    PTDocumentController *documentController = [self getDocumentController];
+    
+    if (!documentController || !documentController.toolManager) {
+        result([FlutterError errorWithCode:@"InvalidState" 
+                                   message:@"DocumentController or ToolManager not available" 
+                                   details:nil]);
+        return;
+    }
+    
+    PTToolManager *toolManager = documentController.toolManager;
+    
+    // Convert annotation type strings to native annotation types and set editing permissions
+    for (NSString *annotationType in annotationTypes) {
+        PTExtendedAnnotType annotType = [self convertStringToAnnotType:annotationType];
+        if (annotType != PTExtendedAnnotTypeUnknown) {
+            // Set the editing permission for this annotation type
+            [toolManager annotationOptionsForAnnotType:annotType].canEdit = enabled;
+        }
+    }
+    
+    result(nil);
+}
+
 - (void)generateDocumentThumbnail:(FlutterResult)result call:(FlutterMethodCall*)call
 {
     NSString *documentUrl = call.arguments[PTDocumentUrlArgumentKey];
@@ -4356,6 +4395,45 @@
     }
 
     return Nil;
+}
+
+- (PTExtendedAnnotType)convertStringToAnnotType:(NSString*)annotationType
+{
+    NSDictionary<NSString *, NSNumber *>* typeMap = @{
+        @"AnnotationCreateSticky" : @(PTExtendedAnnotTypeText),
+        @"AnnotationCreateFreeHand" : @(PTExtendedAnnotTypeInk),
+        @"AnnotationCreateTextHighlight" : @(PTExtendedAnnotTypeHighlight),
+        @"AnnotationCreateTextUnderline" : @(PTExtendedAnnotTypeUnderline),
+        @"AnnotationCreateTextSquiggly" : @(PTExtendedAnnotTypeSquiggly),
+        @"AnnotationCreateTextStrikeout" : @(PTExtendedAnnotTypeStrikeOut),
+        @"AnnotationCreateFreeText" : @(PTExtendedAnnotTypeFreeText),
+        @"AnnotationCreateCallout" : @(PTExtendedAnnotTypeCallout),
+        @"AnnotationCreateSignature" : @(PTExtendedAnnotTypeSignature),
+        @"AnnotationCreateLine" : @(PTExtendedAnnotTypeLine),
+        @"AnnotationCreateArrow" : @(PTExtendedAnnotTypeArrow),
+        @"AnnotationCreatePolyline" : @(PTExtendedAnnotTypePolyline),
+        @"AnnotationCreateStamp" : @(PTExtendedAnnotTypeImageStamp),
+        @"AnnotationCreateRectangle" : @(PTExtendedAnnotTypeSquare),
+        @"AnnotationCreateEllipse" : @(PTExtendedAnnotTypeCircle),
+        @"AnnotationCreatePolygon" : @(PTExtendedAnnotTypePolygon),
+        @"AnnotationCreatePolygonCloud" : @(PTExtendedAnnotTypeCloudy),
+        @"AnnotationCreateDistanceMeasurement" : @(PTExtendedAnnotTypeRuler),
+        @"AnnotationCreatePerimeterMeasurement" : @(PTExtendedAnnotTypePerimeter),
+        @"AnnotationCreateAreaMeasurement" : @(PTExtendedAnnotTypeArea),
+        @"AnnotationCreateFileAttachment" : @(PTExtendedAnnotTypeFileAttachment),
+        @"AnnotationCreateSound" : @(PTExtendedAnnotTypeSound),
+        @"AnnotationCreateFreeHighlighter" : @(PTExtendedAnnotTypeFreehandHighlight),
+        @"AnnotationCreateRedaction" : @(PTExtendedAnnotTypeRedact),
+        @"AnnotationCreateLink" : @(PTExtendedAnnotTypeLink),
+    };
+
+    PTExtendedAnnotType annotType = PTExtendedAnnotTypeUnknown;
+
+    if (typeMap[annotationType]) {
+        annotType = [typeMap[annotationType] unsignedIntValue];
+    }
+
+    return annotType;
 }
 
 @end

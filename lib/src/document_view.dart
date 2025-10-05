@@ -870,6 +870,37 @@ class DocumentViewController {
     });
   }
 
+  /// Sets annotation editing enabled/disabled for specific annotation types.
+  /// 
+  /// This method allows you to control which annotation types can be edited by users.
+  /// When editing is disabled for an annotation type, users cannot select, modify, 
+  /// or delete annotations of that type.
+  /// 
+  /// The [annotationTypes] parameter should be a list of annotation tool constants 
+  /// from the [Tools] class.
+  /// The [enabled] parameter determines whether editing is enabled (true) or disabled (false).
+  /// 
+  /// ```dart
+  /// // Disable editing for highlight and note annotations
+  /// await controller.setAnnotationEditingEnabled([
+  ///   Tools.annotationCreateTextHighlight,
+  ///   Tools.annotationCreateSticky
+  /// ], false);
+  /// 
+  /// // Re-enable editing for all annotation types
+  /// await controller.setAnnotationEditingEnabled([
+  ///   Tools.annotationCreateTextHighlight,
+  ///   Tools.annotationCreateSticky,
+  ///   Tools.annotationCreateFreeHand
+  /// ], true);
+  /// ```
+  Future<void> setAnnotationEditingEnabled(List<String> annotationTypes, bool enabled) {
+    return _channel.invokeMethod(Functions.setAnnotationEditingEnabled, <String, dynamic>{
+      Parameters.annotationTypes: annotationTypes,
+      Parameters.enabled: enabled
+    });
+  }
+
   // Annotation Event Stream Controllers
   final StreamController<AnnotationEvent> _annotationSelectedController = StreamController<AnnotationEvent>.broadcast();
   final StreamController<AnnotationEvent> _annotationDeselectedController = StreamController<AnnotationEvent>.broadcast();

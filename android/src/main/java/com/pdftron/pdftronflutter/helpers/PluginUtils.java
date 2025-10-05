@@ -121,6 +121,8 @@ public class PluginUtils {
 
     public static final String KEY_REQUESTED_ORIENTATION = "requestedOrientation";
     public static final String KEY_STYLE_PROPERTIES = "styleProperties";
+    public static final String KEY_ANNOTATION_TYPES = "annotationTypes";
+    public static final String KEY_ENABLED = "enabled";
 
     public static final String KEY_CONFIG_DISABLED_ELEMENTS = "disabledElements";
     public static final String KEY_CONFIG_DISABLED_TOOLS = "disabledTools";
@@ -367,6 +369,7 @@ public class PluginUtils {
     public static final String FUNCTION_SET_DEFAULT_STYLE_FOR_TOOL = "setDefaultStyleForTool";
     public static final String FUNCTION_SET_STYLE_FOR_ANNOTATION = "setStyleForAnnotation";
     public static final String FUNCTION_GET_SELECTED_ANNOTATIONS = "getSelectedAnnotations";
+    public static final String FUNCTION_SET_ANNOTATION_EDITING_ENABLED = "setAnnotationEditingEnabled";
 
     public static final String BUTTON_TOOLS = "toolsButton";
     public static final String BUTTON_SEARCH = "searchButton";
@@ -2735,6 +2738,11 @@ public class PluginUtils {
                 getSelectedAnnotations(result, component);
                 break;
             }
+            case FUNCTION_SET_ANNOTATION_EDITING_ENABLED: {
+                checkFunctionPrecondition(component);
+                setAnnotationEditingEnabled(call, result, component);
+                break;
+            }
             default:
                 Log.e("PDFTronFlutter", "notImplemented: " + call.method);
                 result.notImplemented();
@@ -4891,6 +4899,45 @@ public class PluginUtils {
             result.success(annotations.toString());
         } catch (Exception e) {
             result.error("Error", "Failed to get selected annotations: " + e.getMessage(), null);
+        }
+    }
+
+    private static void setAnnotationEditingEnabled(MethodCall call, MethodChannel.Result result, ViewerComponent component) {
+        try {
+            ArrayList<String> annotationTypes = call.argument(KEY_ANNOTATION_TYPES);
+            Boolean enabled = call.argument(KEY_ENABLED);
+            
+            if (annotationTypes == null || enabled == null) {
+                result.error("InvalidArguments", "annotationTypes and enabled are required", null);
+                return;
+            }
+            
+            PdfViewCtrlTabHostFragment2 pdfViewCtrlTabHostFragment2 = component.getPdfViewCtrlTabHostFragment();
+            if (pdfViewCtrlTabHostFragment2 == null) {
+                result.error("InvalidState", "Activity not attached", null);
+                return;
+            }
+            
+            ToolManager toolManager = pdfViewCtrlTabHostFragment2.getToolManager();
+            if (toolManager == null) {
+                result.error("InvalidState", "ToolManager not available", null);
+                return;
+            }
+            
+            // Convert annotation type strings to native annotation types and set editing permissions
+            for (String annotationType : annotationTypes) {
+                int annotType = convStringToAnnotType(annotationType);
+                if (annotType != Annot.e_Unknown) {
+                    AnnotationDialogFragment.Options options = toolManager.annotationOptionsForAnnotType(annotType);
+                    if (options != null) {
+                        options.canEdit = enabled;
+                    }
+                }
+            }
+            
+            result.success(null);
+        } catch (Exception e) {
+            result.error("Error", "Failed to set annotation editing enabled: " + e.getMessage(), null);
         }
     }
 }

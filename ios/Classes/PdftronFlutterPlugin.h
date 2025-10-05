@@ -281,6 +281,7 @@ static NSString * const PTGetAnnotationsOnPageKey = @"getAnnotationsOnPage";
 static NSString * const PTSetDefaultStyleForToolKey = @"setDefaultStyleForTool";
 static NSString * const PTSetStyleForAnnotationKey = @"setStyleForAnnotation";
 static NSString * const PTGetSelectedAnnotationsKey = @"getSelectedAnnotations";
+static NSString * const PTSetAnnotationEditingEnabledKey = @"setAnnotationEditingEnabled";
 static NSString * const PTGenerateDocumentThumbnailKey = @"generateDocumentThumbnail";
 
 // argument
@@ -323,6 +324,8 @@ static NSString * const PTAnimatedArgumentKey = @"animated";
 // Hygen Generated Method Parameters
 static NSString * const PTLayoutModeArgumentKey = @"layoutMode";
 static NSString * const PTFitModeArgumentKey = @"fitMode";
+static NSString * const PTAnnotationTypesArgumentKey = @"annotationTypes";
+static NSString * const PTEnabledArgumentKey = @"enabled";
 
 // event strings
 static NSString * const PTExportAnnotationCommandEventKey = @"export_annotation_command_event";

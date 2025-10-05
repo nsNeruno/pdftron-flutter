@@ -86,6 +86,7 @@ class Functions {
   static const setDefaultStyleForTool = "setDefaultStyleForTool";
   static const setStyleForAnnotation = "setStyleForAnnotation";
   static const getSelectedAnnotations = "getSelectedAnnotations";
+  static const setAnnotationEditingEnabled = "setAnnotationEditingEnabled";
   static const generateDocumentThumbnail = "generateDocumentThumbnail";
 }
 
@@ -130,6 +131,8 @@ class Parameters {
   static const layoutMode = "layoutMode";
   static const fitMode = "fitMode";
   static const styleProperties = "styleProperties";
+  static const annotationTypes = "annotationTypes";
+  static const enabled = "enabled";
   static const documentUrl = "documentUrl";
 }
 
@@ -203,6 +206,9 @@ class Buttons {
 
 /// Tools for the viewer.
 class Tools {
+
+  const Tools._();
+
   static const annotationEdit = 'AnnotationEdit';
   static const textSelect = 'TextSelect';
   static const annotationCreateSticky = 'AnnotationCreateSticky';
