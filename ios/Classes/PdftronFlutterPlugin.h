@@ -282,6 +282,8 @@ static NSString * const PTSetDefaultStyleForToolKey = @"setDefaultStyleForTool";
 static NSString * const PTSetStyleForAnnotationKey = @"setStyleForAnnotation";
 static NSString * const PTGetSelectedAnnotationsKey = @"getSelectedAnnotations";
 static NSString * const PTSetAnnotationEditingEnabledKey = @"setAnnotationEditingEnabled";
+static NSString * const PTDeselectAllAnnotationsKey = @"deselectAllAnnotations";
+static NSString * const PTDeselectAnnotationKey = @"deselectAnnotation";
 static NSString * const PTGenerateDocumentThumbnailKey = @"generateDocumentThumbnail";
 
 // argument
@@ -326,6 +328,7 @@ static NSString * const PTLayoutModeArgumentKey = @"layoutMode";
 static NSString * const PTFitModeArgumentKey = @"fitMode";
 static NSString * const PTAnnotationTypesArgumentKey = @"annotationTypes";
 static NSString * const PTEnabledArgumentKey = @"enabled";
+static NSString * const PTAnnotationIdArgumentKey = @"annotationId";
 
 // event strings
 static NSString * const PTExportAnnotationCommandEventKey = @"export_annotation_command_event";

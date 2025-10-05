@@ -123,6 +123,7 @@ public class PluginUtils {
     public static final String KEY_STYLE_PROPERTIES = "styleProperties";
     public static final String KEY_ANNOTATION_TYPES = "annotationTypes";
     public static final String KEY_ENABLED = "enabled";
+    public static final String KEY_ANNOTATION_ID = "annotationId";
 
     public static final String KEY_CONFIG_DISABLED_ELEMENTS = "disabledElements";
     public static final String KEY_CONFIG_DISABLED_TOOLS = "disabledTools";
@@ -370,6 +371,8 @@ public class PluginUtils {
     public static final String FUNCTION_SET_STYLE_FOR_ANNOTATION = "setStyleForAnnotation";
     public static final String FUNCTION_GET_SELECTED_ANNOTATIONS = "getSelectedAnnotations";
     public static final String FUNCTION_SET_ANNOTATION_EDITING_ENABLED = "setAnnotationEditingEnabled";
+    public static final String FUNCTION_DESELECT_ALL_ANNOTATIONS = "deselectAllAnnotations";
+    public static final String FUNCTION_DESELECT_ANNOTATION = "deselectAnnotation";
 
     public static final String BUTTON_TOOLS = "toolsButton";
     public static final String BUTTON_SEARCH = "searchButton";
@@ -2743,6 +2746,16 @@ public class PluginUtils {
                 setAnnotationEditingEnabled(call, result, component);
                 break;
             }
+            case FUNCTION_DESELECT_ALL_ANNOTATIONS: {
+                checkFunctionPrecondition(component);
+                deselectAllAnnotations(result, component);
+                break;
+            }
+            case FUNCTION_DESELECT_ANNOTATION: {
+                checkFunctionPrecondition(component);
+                deselectAnnotation(call, result, component);
+                break;
+            }
             default:
                 Log.e("PDFTronFlutter", "notImplemented: " + call.method);
                 result.notImplemented();
@@ -4938,6 +4951,93 @@ public class PluginUtils {
             result.success(null);
         } catch (Exception e) {
             result.error("Error", "Failed to set annotation editing enabled: " + e.getMessage(), null);
+        }
+    }
+
+    private static void deselectAllAnnotations(MethodChannel.Result result, ViewerComponent component) {
+        try {
+            ToolManager toolManager = component.getToolManager();
+            if (toolManager == null) {
+                result.error("InvalidState", "ToolManager not available", null);
+                return;
+            }
+            
+            // Use the existing deselectAll method that we found in the analysis
+            toolManager.deselectAll();
+            
+            result.success(null);
+        } catch (Exception e) {
+            result.error("Error", "Failed to deselect all annotations: " + e.getMessage(), null);
+        }
+    }
+
+    private static void deselectAnnotation(MethodCall call, MethodChannel.Result result, ViewerComponent component) {
+        try {
+            String annotationId = call.argument(KEY_ANNOTATION_ID);
+            
+            if (annotationId == null) {
+                result.error("InvalidArguments", "annotationId is required", null);
+                return;
+            }
+            
+            ToolManager toolManager = component.getToolManager();
+            if (toolManager == null) {
+                result.error("InvalidState", "ToolManager not available", null);
+                return;
+            }
+            
+            // Get currently selected annotations
+            HashMap<Annot, Integer> selectedAnnots = component.getSelectedAnnots();
+            if (selectedAnnots == null || selectedAnnots.isEmpty()) {
+                // No annotations selected, nothing to deselect
+                result.success(null);
+                return;
+            }
+            
+            // Find the annotation to deselect by ID
+            Annot targetAnnot = null;
+            Integer targetPage = null;
+            for (Map.Entry<Annot, Integer> entry : selectedAnnots.entrySet()) {
+                try {
+                    Annot annot = entry.getKey();
+                    if (annot != null && annot.getUniqueID() != null) {
+                        String annotUniqueId = annot.getUniqueID().getAsPDFText();
+                        if (annotationId.equals(annotUniqueId)) {
+                            targetAnnot = annot;
+                            targetPage = entry.getValue();
+                            break;
+                        }
+                    }
+                } catch (Exception e) {
+                    // Continue to next annotation if this one fails
+                    continue;
+                }
+            }
+            
+            if (targetAnnot != null && targetPage != null) {
+                // Create a new selection map without the target annotation
+                HashMap<Annot, Integer> newSelection = new HashMap<>(selectedAnnots);
+                newSelection.remove(targetAnnot);
+                
+                // Clear all selections first
+                toolManager.deselectAll();
+                
+                // Re-select the remaining annotations if any
+                for (Map.Entry<Annot, Integer> entry : newSelection.entrySet()) {
+                    try {
+                        String remainingId = entry.getKey().getUniqueID().getAsPDFText();
+                        int remainingPage = entry.getValue();
+                        toolManager.selectAnnot(remainingId, remainingPage);
+                    } catch (Exception e) {
+                        // Continue to next annotation if this one fails
+                        continue;
+                    }
+                }
+            }
+            
+            result.success(null);
+        } catch (Exception e) {
+            result.error("Error", "Failed to deselect annotation: " + e.getMessage(), null);
         }
     }
 }

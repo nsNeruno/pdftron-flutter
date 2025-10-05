@@ -16,6 +16,8 @@ class Functions {
   static const flattenAnnotations = "flattenAnnotations";
   static const deleteAnnotations = "deleteAnnotations";
   static const selectAnnotation = "selectAnnotation";
+  static const deselectAllAnnotations = "deselectAllAnnotations";
+  static const deselectAnnotation = "deselectAnnotation";
   static const setFlagsForAnnotations = "setFlagsForAnnotations";
   static const setPropertiesForAnnotation = "setPropertiesForAnnotation";
   static const groupAnnotations = "groupAnnotations";
@@ -109,6 +111,7 @@ class Parameters {
   static const formsOnly = "formsOnly";
   static const annotations = "annotations";
   static const annotation = "annotation";
+  static const annotationId = "annotationId";
   static const annotationsWithFlags = "annotationsWithFlags";
   static const annotationProperties = "annotationProperties";
   static const leadingNavButtonIcon = "leadingNavButtonIcon";

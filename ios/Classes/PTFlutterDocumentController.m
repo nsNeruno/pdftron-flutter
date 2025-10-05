@@ -391,6 +391,7 @@ static BOOL PT_addMethod(Class cls, SEL selector, void (^block)(id))
 
 - (void)toolManager:(PTToolManager *)toolManager didDeselectAnnotation:(PTAnnot *)annotation onPageNumber:(unsigned long)pageNumber
 {
+    NSLog(@"[PTFlutter] didDeselectAnnotation called on page %lu, annotation valid: %@", pageNumber, annotation.IsValid ? @"YES" : @"NO");
     if (annotation.IsValid) {
         // Send the specific annotation deselected event for the new API
         [self.plugin sendAnnotationEventToFlutter:@"onAnnotationDeselected" annotation:annotation pageNumber:pageNumber];

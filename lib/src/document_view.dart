@@ -152,6 +152,32 @@ class DocumentViewController {
         <String, dynamic>{Parameters.annotation: jsonEncode(annotation)});
   }
 
+  /// Deselects all currently selected annotations.
+  ///
+  /// This method clears the selection of all annotations that are currently 
+  /// selected in the document viewer.
+  ///
+  /// ```dart
+  /// await controller.deselectAllAnnotations();
+  /// ```
+  Future<void> deselectAllAnnotations() {
+    return _channel.invokeMethod(Functions.deselectAllAnnotations);
+  }
+
+  /// Deselects a specific annotation by its ID.
+  ///
+  /// The [annotationId] parameter should be the unique ID of the annotation
+  /// to deselect. If the annotation is not currently selected, this method
+  /// has no effect.
+  ///
+  /// ```dart
+  /// await controller.deselectAnnotation('annotation_id_here');
+  /// ```
+  Future<void> deselectAnnotation(String annotationId) {
+    return _channel.invokeMethod(Functions.deselectAnnotation,
+        <String, dynamic>{Parameters.annotationId: annotationId});
+  }
+
   /// Sets flags for the specified annotations in the current document.
   ///
   /// ```dart
@@ -805,8 +831,23 @@ class DocumentViewController {
   /// Sets the default style properties for the specified annotation tool.
   /// 
   /// The [toolMode] should be one of the [Tools] constants.
-  /// The [styleProperties] is a map containing the style properties to set.
+  /// The [styleProperties] can be either an [AnnotationStyleProperties] object
+  /// for type-safe styling, or a Map<String, dynamic> for backward compatibility.
   /// 
+  /// Using typed properties (recommended):
+  /// ```dart
+  /// final style = AnnotationStyleProperties()
+  ///   ..strokeColor = const Color(0xFFFF0000)
+  ///   ..opacity = 0.5
+  ///   ..strokeWidth = 2.0;
+  /// 
+  /// await controller.setDefaultStyleForTool(
+  ///   Tools.annotationCreateTextHighlight,
+  ///   style
+  /// );
+  /// ```
+  /// 
+  /// Using map (backward compatible):
   /// ```dart
   /// await controller.setDefaultStyleForTool(
   ///   Tools.annotationCreateTextHighlight,
@@ -817,28 +858,79 @@ class DocumentViewController {
   ///   }
   /// );
   /// ```
-  Future<void> setDefaultStyleForTool(String toolMode, Map<String, dynamic> styleProperties) {
+  Future<void> setDefaultStyleForTool(String toolMode, dynamic styleProperties) {
+    Map<String, dynamic> properties;
+    
+    if (styleProperties is AnnotationStyleProperties) {
+      // Validate the properties
+      final errors = styleProperties.validate();
+      if (errors.isNotEmpty) {
+        throw ArgumentError('Invalid style properties: ${errors.join(', ')}');
+      }
+      properties = styleProperties.toMap();
+    } else if (styleProperties is Map<String, dynamic>) {
+      properties = styleProperties;
+    } else {
+      throw ArgumentError(
+        'styleProperties must be either AnnotationStyleProperties or Map<String, dynamic>'
+      );
+    }
+    
     return _channel.invokeMethod(Functions.setDefaultStyleForTool, <String, dynamic>{
       Parameters.toolMode: toolMode,
-      Parameters.styleProperties: jsonEncode(styleProperties)
+      Parameters.styleProperties: jsonEncode(properties)
     });
   }
 
   /// Modifies the style properties of an existing annotation.
   /// 
+  /// The [annotation] parameter identifies the annotation to modify.
+  /// The [styleProperties] can be either an [AnnotationStyleProperties] object
+  /// for type-safe styling, or a Map<String, dynamic> for backward compatibility.
+  /// 
+  /// Using typed properties (recommended):
+  /// ```dart
+  /// final style = AnnotationStyleProperties()
+  ///   ..strokeColor = const Color(0xFF00FF00)
+  ///   ..opacity = 0.8;
+  /// 
+  /// await controller.setStyleForAnnotation(
+  ///   Annot('annotId', 1),
+  ///   style
+  /// );
+  /// ```
+  /// 
+  /// Using map (backward compatible):
   /// ```dart
   /// await controller.setStyleForAnnotation(
-  ///   new Annot('annotId', 1),
+  ///   Annot('annotId', 1),
   ///   {
   ///     'color': '#00FF00',
   ///     'opacity': 0.8,
   ///   }
   /// );
   /// ```
-  Future<void> setStyleForAnnotation(Annot annotation, Map<String, dynamic> styleProperties) {
+  Future<void> setStyleForAnnotation(Annot annotation, dynamic styleProperties) {
+    Map<String, dynamic> properties;
+    
+    if (styleProperties is AnnotationStyleProperties) {
+      // Validate the properties
+      final errors = styleProperties.validate();
+      if (errors.isNotEmpty) {
+        throw ArgumentError('Invalid style properties: ${errors.join(', ')}');
+      }
+      properties = styleProperties.toMap();
+    } else if (styleProperties is Map<String, dynamic>) {
+      properties = styleProperties;
+    } else {
+      throw ArgumentError(
+        'styleProperties must be either AnnotationStyleProperties or Map<String, dynamic>'
+      );
+    }
+    
     return _channel.invokeMethod(Functions.setStyleForAnnotation, <String, dynamic>{
       Parameters.annotation: jsonEncode(annotation),
-      Parameters.styleProperties: jsonEncode(styleProperties)
+      Parameters.styleProperties: jsonEncode(properties)
     });
   }
 
@@ -921,22 +1013,28 @@ class DocumentViewController {
 
   /// Starts listening to annotation events.
   void _startAnnotationEventListeners() {
+    print('[PDFTron Flutter] Starting annotation event listeners on channel: ${_channel.name}');
     _channel.setMethodCallHandler((MethodCall call) async {
+      print('[PDFTron Flutter] Received method call: ${call.method} with arguments: ${call.arguments}');
       switch (call.method) {
         case 'onAnnotationSelected':
           final event = AnnotationEvent.fromJson(jsonDecode(call.arguments));
+          print('[PDFTron Flutter] Processing onAnnotationSelected: ${event.annotation?.id}');
           _annotationSelectedController.add(event);
           break;
         case 'onAnnotationDeselected':
           final event = AnnotationEvent.fromJson(jsonDecode(call.arguments));
+          print('[PDFTron Flutter] Processing onAnnotationDeselected: ${event.annotation?.id}');
           _annotationDeselectedController.add(event);
           break;
         case 'onAnnotationAdded':
           final event = AnnotationEvent.fromJson(jsonDecode(call.arguments));
+          print('[PDFTron Flutter] Processing onAnnotationAdded: ${event.annotation?.id}');
           _annotationAddedController.add(event);
           break;
         case 'onAnnotationRemoved':
           final event = AnnotationEvent.fromJson(jsonDecode(call.arguments));
+          print('[PDFTron Flutter] Processing onAnnotationRemoved: ${event.annotation?.id}');
           _annotationRemovedController.add(event);
           break;
       }

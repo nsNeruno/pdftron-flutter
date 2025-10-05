@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 
 import 'src/options.dart';
 import 'src/document_view.dart';
-import 'src/events.dart';
 import 'src/config.dart';
 import 'src/constants.dart';
 
@@ -17,6 +16,7 @@ export 'src/document_view.dart';
 export 'src/events.dart';
 export 'src/config.dart';
 export 'src/constants.dart';
+export 'src/annotation_style_properties.dart';
 
 /// A native plugin for viewing documents and accessing features of the PDFTron SDK.
 class PdftronFlutter {
