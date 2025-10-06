@@ -2965,99 +2965,25 @@
 - (void)setToolMode:(NSString *)toolMode resultToken:(FlutterResult)flutterResult;
 {
     PTDocumentController *documentController = [self getDocumentController];
-    Class toolClass = Nil;
+    // Ask the class helper to resolve the tool class for this key.
+    Class toolClass = [[self class] toolClassForKey:toolMode];
+    NSLog(@"[PTFlutter] setToolMode: %@ → toolClass: %@", toolMode, NSStringFromClass(toolClass));
 
-    if ([toolMode isEqualToString:PTAnnotationEditToolKey]) {
-        // multi-select not implemented
-    } else if([toolMode isEqualToString:PTAnnotationCreateStickyToolKey]) {
-        toolClass = [PTStickyNoteCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateFreeHandToolKey]) {
-        toolClass = [PTFreeHandCreate class];
-    } else if ([toolMode isEqualToString:PTTextSelectToolKey]) {
-        toolClass = [PTTextSelectTool class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateSoundToolKey]) {
-        toolClass = [PTSound class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateTextHighlightToolKey]) {
-        toolClass = [PTTextHighlightCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateTextUnderlineToolKey]) {
-        toolClass = [PTTextUnderlineCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateTextSquigglyToolKey]) {
-        toolClass = [PTTextSquigglyCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateTextStrikeoutToolKey]) {
-        toolClass = [PTTextStrikeoutCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateFreeTextToolKey]) {
-        toolClass = [PTFreeTextCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateCalloutToolKey]) {
-        toolClass = [PTCalloutCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateSignatureToolKey]) {
-        toolClass = [PTDigitalSignatureTool class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateLineToolKey]) {
-        toolClass = [PTLineCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateArrowToolKey]) {
-        toolClass = [PTArrowCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreatePolylineToolKey]) {
-        toolClass = [PTPolylineCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateStampToolKey]) {
-        toolClass = [PTImageStampCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateRectangleToolKey]) {
-        toolClass = [PTRectangleCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateEllipseToolKey]) {
-        toolClass = [PTEllipseCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreatePolygonToolKey]) {
-        toolClass = [PTPolygonCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreatePolygonCloudToolKey]) {
-        toolClass = [PTCloudCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateDistanceMeasurementToolKey]) {
-        toolClass = [PTRulerCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreatePerimeterMeasurementToolKey]) {
-        toolClass = [PTPerimeterCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateAreaMeasurementToolKey]) {
-        toolClass = [PTAreaCreate class];
-    } else if ([toolMode isEqualToString:PTEraserToolKey]) {
-        toolClass = [PTEraser class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateFreeHighlighterToolKey]) {
-        toolClass = [PTFreeHandHighlightCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateRubberStampToolKey]) {
-        toolClass = [PTRubberStampCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateFileAttachmentToolKey]) {
-        toolClass = [PTFileAttachmentCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateRedactionToolKey]) {
-        toolClass = [PTRectangleRedactionCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateLinkToolKey]) {
-        // TODO
-    } else if ([toolMode isEqualToString:PTAnnotationCreateRedactionTextToolKey]) {
-        toolClass = [PTTextRedactionCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationCreateLinkTextToolKey]) {
-        // TODO
-    } else if ([toolMode isEqualToString:PTFormCreateTextFieldToolKey]) {
-        // TODO
-    } else if ([toolMode isEqualToString:PTFormCreateCheckboxFieldToolKey]) {
-        // TODO
-    } else if ([toolMode isEqualToString:PTFormCreateSignatureFieldToolKey]) {
-        // TODO
-    } else if ([toolMode isEqualToString:PTFormCreateRadioFieldToolKey]) {
-        // TODO
-    } else if ([toolMode isEqualToString:PTFormCreateComboBoxFieldToolKey]) {
-        // TODO
-    } else if ([toolMode isEqualToString:PTFormCreateListBoxFieldToolKey]) {
-        // TODO
-    } else if ([toolMode isEqualToString:PTPencilKitDrawingToolKey]) {
-        toolClass = [PTPencilDrawingCreate class];
-    } else if ([toolMode isEqualToString:PTAnnotationSmartPenToolKey]) {
-        toolClass = [PTSmartPen class];
-    } else if ([toolMode isEqualToString:PTPanToolKey]) {
-        toolClass = [PTPanTool class];
-    }
-
-    if (toolClass) {
+    if (toolClass != Nil) {
         PTTool *tool = [documentController.toolManager changeTool:toolClass];
 
-        tool.backToPanToolAfterUse = !((PTFlutterDocumentController *)documentController).isContinuousAnnotationEditingEnabled;
+        // Match existing behavior: return to pan unless continuous editing is enabled.
+        tool.backToPanToolAfterUse =
+                !((PTFlutterDocumentController *)documentController).isContinuousAnnotationEditingEnabled;
 
-        if ([tool isKindOfClass:[PTFreeHandCreate class]]
-            && ![tool isKindOfClass:[PTFreeHandHighlightCreate class]]) {
+        // Enable multistroke for FreeHand (but not the highlighter variant).
+        if ([tool isKindOfClass:[PTFreeHandCreate class]] &&
+                ![tool isKindOfClass:[PTFreeHandHighlightCreate class]]) {
             ((PTFreeHandCreate *)tool).multistrokeMode = YES;
         }
+    } else {
+        // Optional: log unhandled keys for easier debugging
+        NSLog(@"Unrecognized tool key: %@", toolMode);
     }
 
     flutterResult(nil);
@@ -4619,22 +4545,14 @@
             float opacity = [opacityNumber floatValue];
             UIColor *opacityColor = [UIColor colorWithWhite:1.0 alpha:opacity];
             NSLog(@"[PTColorDefaults] Setting opacity %.2f for annotation type %lu", opacity, (unsigned long)annotType);
-            [colorDefaultsClass setDefaultColor:opacityColor 
-                                    forAnnotType:annotType 
-                                       attribute:ATTRIBUTE_OPACITY 
-                            colorPostProcessMode:e_ptpostprocess_none];
+            [colorDefaultsClass setDefaultOpacity:opacity forAnnotType:annotType];
         }
         
         // Set thickness if provided - using proper constants from sample
         if (thicknessNumber) {
             float thickness = [thicknessNumber floatValue];
             NSLog(@"[PTColorDefaults] Setting thickness %.2f for annotation type %lu", thickness, (unsigned long)annotType);
-            // Create a dummy color for thickness (thickness is handled as a color-like attribute)
-            UIColor *thicknessColor = [UIColor colorWithWhite:thickness/10.0 alpha:1.0];
-            [colorDefaultsClass setDefaultColor:thicknessColor 
-                                    forAnnotType:annotType 
-                                       attribute:ATTRIBUTE_BORDER_THICKNESS 
-                            colorPostProcessMode:e_ptpostprocess_none];
+            [colorDefaultsClass setDefaultBorderThickness:thickness forAnnotType:annotType];
         }
         
         // Set font size if provided (for text annotations) - using proper constants from sample

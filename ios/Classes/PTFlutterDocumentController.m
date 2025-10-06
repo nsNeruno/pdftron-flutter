@@ -314,10 +314,6 @@ static BOOL PT_addMethod(Class cls, SEL selector, void (^block)(id))
 
 - (void)toolManager:(PTToolManager *)toolManager annotationAdded:(PTAnnot *)annotation onPageNumber:(unsigned long)pageNumber
 {
-    NSString* annotationsWithActionString = [self generateAnnotationsWithActionString:@[annotation] onPageNumber:pageNumber action:PTAddActionKey];
-    if (annotationsWithActionString) {
-        [self.plugin documentController:self annotationsChangedWithActionString:annotationsWithActionString];
-    }
     
     NSString* xfdf;
     if (self.isAnnotationManagerEnabled && self.userId) {
@@ -326,7 +322,9 @@ static BOOL PT_addMethod(Class cls, SEL selector, void (^block)(id))
         xfdf = [self generateXfdfCommandWithAdded:@[annotation] modified:Nil removed:Nil];
     }
     [self.plugin documentController:self annotationsAsXFDFCommand:xfdf];
-    
+
+    [annotation RefreshAppearance];
+
     // Also send the specific annotation added event for the new API
     [self.plugin sendAnnotationEventToFlutter:@"onAnnotationAdded" annotation:annotation pageNumber:pageNumber];
 }
@@ -343,11 +341,6 @@ static BOOL PT_addMethod(Class cls, SEL selector, void (^block)(id))
         BOOL canRedoState = [undoManager canRedo];
         NSLog(@"[PageContentTracking] After modification - canUndo: %@, canRedo: %@", 
               canUndoState ? @"YES" : @"NO", canRedoState ? @"YES" : @"NO");
-    }
-    
-    NSString* annotationsWithActionString = [self generateAnnotationsWithActionString:@[annotation] onPageNumber:pageNumber action:PTModifyActionKey];
-    if (annotationsWithActionString) {
-        [self.plugin documentController:self annotationsChangedWithActionString:annotationsWithActionString];
     }
   
     NSString* xfdf;
@@ -401,15 +394,6 @@ static BOOL PT_addMethod(Class cls, SEL selector, void (^block)(id))
         
         // Also send the specific annotation selected event for the new API
         [self.plugin sendAnnotationEventToFlutter:@"onAnnotationSelected" annotation:annotation pageNumber:pageNumber];
-    }
-}
-
-- (void)toolManager:(PTToolManager *)toolManager didDeselectAnnotation:(PTAnnot *)annotation onPageNumber:(unsigned long)pageNumber
-{
-    NSLog(@"[PTFlutter] didDeselectAnnotation called on page %lu, annotation valid: %@", pageNumber, annotation.IsValid ? @"YES" : @"NO");
-    if (annotation.IsValid) {
-        // Send the specific annotation deselected event for the new API
-        [self.plugin sendAnnotationEventToFlutter:@"onAnnotationDeselected" annotation:annotation pageNumber:pageNumber];
     }
 }
 
