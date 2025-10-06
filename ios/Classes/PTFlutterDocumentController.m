@@ -333,6 +333,18 @@ static BOOL PT_addMethod(Class cls, SEL selector, void (^block)(id))
 
 - (void)toolManager:(PTToolManager *)toolManager annotationModified:(PTAnnot *)annotation onPageNumber:(unsigned long)pageNumber
 {
+    NSLog(@"[PageContentTracking] Annotation modified on page %lu", pageNumber);
+    NSLog(@"[PageContentTracking] Annotation type: %d, IsValid: %@", annotation.GetType, annotation.IsValid ? @"YES" : @"NO");
+    
+    // Check undo/redo state after modification
+    NSUndoManager *undoManager = self.undoManager;
+    if (undoManager) {
+        BOOL canUndoState = [undoManager canUndo];
+        BOOL canRedoState = [undoManager canRedo];
+        NSLog(@"[PageContentTracking] After modification - canUndo: %@, canRedo: %@", 
+              canUndoState ? @"YES" : @"NO", canRedoState ? @"YES" : @"NO");
+    }
+    
     NSString* annotationsWithActionString = [self generateAnnotationsWithActionString:@[annotation] onPageNumber:pageNumber action:PTModifyActionKey];
     if (annotationsWithActionString) {
         [self.plugin documentController:self annotationsChangedWithActionString:annotationsWithActionString];
@@ -345,6 +357,9 @@ static BOOL PT_addMethod(Class cls, SEL selector, void (^block)(id))
         xfdf = [self generateXfdfCommandWithAdded:Nil modified:@[annotation] removed:Nil];
     }
     [self.plugin documentController:self annotationsAsXFDFCommand:xfdf];
+
+    // Also send the specific annotation selected event for the new API
+    [self.plugin sendAnnotationEventToFlutter:@"onAnnotationModified" annotation:annotation pageNumber:pageNumber];
 }
 
 - (void)toolManager:(PTToolManager *)toolManager didSelectAnnotation:(PTAnnot *)annotation onPageNumber:(unsigned long)pageNumber

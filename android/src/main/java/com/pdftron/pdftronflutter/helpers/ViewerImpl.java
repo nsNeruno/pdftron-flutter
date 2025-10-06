@@ -105,6 +105,9 @@ public class ViewerImpl {
             for (Map.Entry<Annot, Integer> entry : map.entrySet()) {
                 PluginUtils.emitAnnotationAddedEvent(entry.getKey(), entry.getValue(), mViewerComponent);
             }
+            
+            // Check and emit undo/redo state after addition
+            checkAndEmitUndoRedoState();
         }
 
         @Override
@@ -116,6 +119,9 @@ public class ViewerImpl {
             PluginUtils.emitAnnotationChangedEvent(PluginUtils.KEY_ACTION_MODIFY, map, mViewerComponent);
 
             PluginUtils.emitExportAnnotationCommandEvent(PluginUtils.KEY_ACTION_MODIFY, map, mViewerComponent);
+            
+            // Check and emit undo/redo state after modification
+            checkAndEmitUndoRedoState();
 
             JSONArray fieldsArray = new JSONArray();
 
@@ -160,6 +166,9 @@ public class ViewerImpl {
             for (Map.Entry<Annot, Integer> entry : map.entrySet()) {
                 PluginUtils.emitAnnotationRemovedEvent(entry.getKey(), entry.getValue(), mViewerComponent);
             }
+            
+            // Check and emit undo/redo state after removal
+            checkAndEmitUndoRedoState();
         }
 
         @Override
@@ -475,4 +484,15 @@ public class ViewerImpl {
             }
         }
     };
+    
+    private void checkAndEmitUndoRedoState() {
+        if (mViewerComponent != null) {
+            ToolManager toolManager = mViewerComponent.getToolManager();
+            if (toolManager != null && toolManager.getUndoRedoManger() != null) {
+                boolean canUndo = toolManager.getUndoRedoManger().canUndo();
+                boolean canRedo = toolManager.getUndoRedoManger().canRedo();
+                PluginUtils.emitUndoRedoStateChangedEvent(canUndo, canRedo, mViewerComponent);
+            }
+        }
+    }
 }

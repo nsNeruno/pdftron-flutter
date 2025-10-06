@@ -229,8 +229,6 @@ public class PluginUtils {
 
     public static final String KEY_PREVIOUS_PAGE_NUMBER = "previousPageNumber";
 
-    public static final String KEY_ANNOTATION_ID = "id";
-
     public static final String KEY_ACTION_ADD = "add";
     public static final String KEY_ACTION_MODIFY = "modify";
     public static final String KEY_ACTION_DELETE = "delete";
@@ -3706,6 +3704,14 @@ public class PluginUtils {
         if (pdfViewCtrlTabFragment != null) {
             pdfViewCtrlTabFragment.undo();
             result.success(null);
+            
+            // Emit undo/redo state after undo operation
+            ToolManager toolManager = component.getToolManager();
+            if (toolManager != null && toolManager.getUndoRedoManger() != null) {
+                boolean canUndo = toolManager.getUndoRedoManger().canUndo();
+                boolean canRedo = toolManager.getUndoRedoManger().canRedo();
+                emitUndoRedoStateChangedEvent(canUndo, canRedo, component);
+            }
         } else {
             result.error("InvalidState", "Activity not attached", null);
         }
@@ -3716,6 +3722,14 @@ public class PluginUtils {
         if (pdfViewCtrlTabFragment != null) {
             pdfViewCtrlTabFragment.redo();
             result.success(null);
+            
+            // Emit undo/redo state after redo operation
+            ToolManager toolManager = component.getToolManager();
+            if (toolManager != null && toolManager.getUndoRedoManger() != null) {
+                boolean canUndo = toolManager.getUndoRedoManger().canUndo();
+                boolean canRedo = toolManager.getUndoRedoManger().canRedo();
+                emitUndoRedoStateChangedEvent(canUndo, canRedo, component);
+            }
         } else {
             result.error("InvalidState", "Activity not attached", null);
         }
@@ -4743,6 +4757,25 @@ public class PluginUtils {
                 component.getMethodChannel().invokeMethod("onAnnotationRemoved", eventData.toString());
             }
         } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static void emitUndoRedoStateChangedEvent(boolean canUndo, boolean canRedo, ViewerComponent component) {
+        try {
+            if (component != null && component.getMethodChannel() != null) {
+                JSONObject eventData = new JSONObject();
+                JSONObject stateData = new JSONObject();
+                stateData.put("canUndo", canUndo);
+                stateData.put("canRedo", canRedo);
+                eventData.put("undoRedoState", stateData);
+                eventData.put("data", new JSONObject());
+                
+                Log.d("UndoRedoTracking", "Emitting undo/redo state change - canUndo: " + canUndo + ", canRedo: " + canRedo);
+                component.getMethodChannel().invokeMethod("onUndoRedoStateChanged", eventData.toString());
+            }
+        } catch (Exception e) {
+            Log.e("UndoRedoTracking", "Error emitting undo/redo state change", e);
             e.printStackTrace();
         }
     }

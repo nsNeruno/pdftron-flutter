@@ -997,7 +997,11 @@ class DocumentViewController {
   final StreamController<AnnotationEvent> _annotationSelectedController = StreamController<AnnotationEvent>.broadcast();
   final StreamController<AnnotationEvent> _annotationDeselectedController = StreamController<AnnotationEvent>.broadcast();
   final StreamController<AnnotationEvent> _annotationAddedController = StreamController<AnnotationEvent>.broadcast();
+  final StreamController<AnnotationEvent> _annotationModifiedController = StreamController<AnnotationEvent>.broadcast();
   final StreamController<AnnotationEvent> _annotationRemovedController = StreamController<AnnotationEvent>.broadcast();
+  
+  // Undo/Redo State Stream Controller
+  final StreamController<UndoRedoState> _undoRedoStateController = StreamController<UndoRedoState>.broadcast();
 
   /// Stream of annotation selected events.
   Stream<AnnotationEvent> get onAnnotationSelected => _annotationSelectedController.stream;
@@ -1008,8 +1012,14 @@ class DocumentViewController {
   /// Stream of annotation added events.
   Stream<AnnotationEvent> get onAnnotationAdded => _annotationAddedController.stream;
 
+  /// Stream of annotation modified events.
+  Stream<AnnotationEvent> get onAnnotationModified => _annotationModifiedController.stream;
+
   /// Stream of annotation removed events.
   Stream<AnnotationEvent> get onAnnotationRemoved => _annotationRemovedController.stream;
+  
+  /// Stream of undo/redo state change events.
+  Stream<UndoRedoState> get onUndoRedoStateChanged => _undoRedoStateController.stream;
 
   /// Starts listening to annotation events.
   void _startAnnotationEventListeners() {
@@ -1032,10 +1042,25 @@ class DocumentViewController {
           print('[PDFTron Flutter] Processing onAnnotationAdded: ${event.annotation?.id}');
           _annotationAddedController.add(event);
           break;
+        case 'onAnnotationModified':
+          final event = AnnotationEvent.fromJson(jsonDecode(call.arguments));
+          print('[PDFTron Flutter] Processing onAnnotationModified: ${event.annotation?.id}');
+          _annotationModifiedController.add(event);
+          break;
         case 'onAnnotationRemoved':
           final event = AnnotationEvent.fromJson(jsonDecode(call.arguments));
           print('[PDFTron Flutter] Processing onAnnotationRemoved: ${event.annotation?.id}');
           _annotationRemovedController.add(event);
+          break;
+        case 'onUndoRedoStateChanged':
+          final Map<String, dynamic> data = jsonDecode(call.arguments);
+          final undoRedoState = data['undoRedoState'] as Map<String, dynamic>;
+          final state = UndoRedoState(
+            canUndo: undoRedoState['canUndo'] as bool,
+            canRedo: undoRedoState['canRedo'] as bool,
+          );
+          print('[PDFTron Flutter] Processing onUndoRedoStateChanged: canUndo=${state.canUndo}, canRedo=${state.canRedo}');
+          _undoRedoStateController.add(state);
           break;
       }
     });
@@ -1047,5 +1072,6 @@ class DocumentViewController {
     _annotationDeselectedController.close();
     _annotationAddedController.close();
     _annotationRemovedController.close();
+    _undoRedoStateController.close();
   }
 }
